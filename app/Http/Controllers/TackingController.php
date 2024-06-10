@@ -20,7 +20,7 @@ class TackingController extends Controller
      */
     public function index()
     {
-        $tracking = Tracking::where('user_id', Auth::user()->id)->where('note_id', '=', '')->get();
+        $tracking = Tracking::where('user_id', Auth::user()->id)->get();
 
         return response()->json([
             'success' => true,
@@ -35,7 +35,7 @@ class TackingController extends Controller
      */
     public function create()
     {
-        // 
+        //
     }
 
     /**
@@ -46,7 +46,20 @@ class TackingController extends Controller
      */
     public function store(Request $request)
     {
-        $track = Tracking::create($request->all() + ['user_id' => Auth::user()->id]);
+        // Validator::make($request->all(), [
+        //     'weekly_rating' => 'required',
+        //     'previous_week_description' => 'required',
+        // ])->validate();
+        $data = $request->all();
+        if (!isset($data['goal_id']) || !isset($data['goal_rating'])) {
+            $data['goal_id'] = null;
+            $data['goal_rating'] = null;
+        }
+        if (!isset($data['question_id']) || !isset($data['answer'])) {
+            $data['question_id'] = null;
+            $data['answer'] = null;
+        }
+        $track = Tracking::create($data + ['user_id' => Auth::user()->id]);
 
         return response()->json([
             'success' => true,
@@ -85,7 +98,16 @@ class TackingController extends Controller
      */
     public function update(Request $request, $id)
     {
-        Tracking::find($id)->update($request->all());
+        $data = $request->all();
+        if (!isset($data['goal_id']) || !isset($data['goal_rating'])) {
+            $data['goal_id'] = null;
+            $data['goal_rating'] = null;
+        }
+        if (!isset($data['question_id']) || !isset($data['answer'])) {
+            $data['question_id'] = null;
+            $data['answer'] = null;
+        }
+        Tracking::find($id)->update($data);
         $tracking = Tracking::find($id);
         return response()->json([
             'success' => true,

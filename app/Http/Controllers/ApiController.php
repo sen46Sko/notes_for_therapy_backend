@@ -2,44 +2,40 @@
 
 namespace App\Http\Controllers;
 
-use JWTAuth;
-use Auth;
-use Hash;
-use Illuminate\Support\Str;
-use App\Models\User;
+use App\Helper\StorageHelper;
+use App\Mail\NewUserEmail;
+use App\Models\Coupon;
+use App\Models\Goal;
+use App\Models\GoalTracking;
+use App\Models\HomeworkModel;
+use App\Models\Mood;
+use App\Models\Note;
+use App\Models\Notification;
+use App\Models\Subscription;
 use App\Models\Symptom;
 use App\Models\SymptomTracking;
-use App\Models\GoalTracking;
-use App\Models\Goal;
-use App\Models\Note;
 use App\Models\Tracking;
-use App\Models\HomeworkModel;
-use App\Models\Subscription;
-use App\Models\UserCoupon;
 use App\Models\UsedCoupon;
-use App\Models\Notification;
-use App\Models\Follow;
-use App\Models\Coupon;
-use App\Helper\Helper;
-use App\Models\GroupSchedule;
-use Illuminate\Http\Request;
-use Tymon\JWTAuth\Exceptions\JWTException;
-use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Password;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\SchedulesExport;
-use DB;
+use App\Models\User;
+use App\Models\UserCoupon;
+use Auth;
 use Carbon\Carbon;
-use api;
-use App\Models\UserType;
-use App\Models\TrainerClient;
-use Twilio\Rest\Client;
+use Hash;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use App\Mail\NewUserEmail;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
+use JWTAuth;
+use Symfony\Component\HttpFoundation\Response;
+use Tymon\JWTAuth\Exceptions\JWTException;
 
 class ApiController extends Controller
 {
+    private function storeImage($request)
+    {
+        return (new StorageHelper($request->user()->id, 'user'))->storeFile($request->file('image'));
+    }
+
     public function register(Request $request)
     {
 
@@ -49,22 +45,22 @@ class ApiController extends Controller
             // 'phone_number' => 'required|unique:users',
             'password' => 'required|confirmed|string|min:6',
 
-
         ]);
 
         //Send failed response if request is not valid
         if ($validator->fails()) {
             $message = [
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
             ];
             return response()->json($message, 500);
         }
         if ($request->has('image')) {
-            $path = $request->file('image')->store('user');
+            // $path = $request->file('image')->store('user');
+            $path = $this->storeImage($request);
         } else {
             $path = "";
         }
-        $date =Carbon::now();
+        $date = Carbon::now();
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -78,34 +74,33 @@ class ApiController extends Controller
 
         ]);
 
-
-
-
         Mail::to($user->email)->send(new NewUserEmail($user));
         return $this->authenticate($request);
     }
 
-
     public function update_profile(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'unique:users,email,' . Auth::user()->id
+            'email' => 'unique:users,email,' . Auth::user()->id,
         ]);
         if ($validator->fails()) {
             $message = [
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
             ];
             return response()->json($message, 500);
         }
         $data = $request->except('image');
         if ($request->hasfile('image')) {
-            $path = $request->file('image')->store('user');
+            // $path = $request->file('image')->store('user');
+            $path = $this->storeImage($request);
             $data['image'] = $path;
         }
         User::where('id', Auth::user()->id)->update($data);
+        $newUser = User::find(Auth::user()->id);
         return response()->json([
             'success' => true,
-            'message' => 'Update Successfully'
+            'data' => $newUser,
+            'message' => 'Update Successfully',
         ], Response::HTTP_OK);
     }
 
@@ -121,7 +116,7 @@ class ApiController extends Controller
         //Send failed response if request is not valid
         if ($validator->fails()) {
             $message = [
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
             ];
             return response()->json($message, 500);
         }
@@ -132,13 +127,13 @@ class ApiController extends Controller
             $user->update(['password' => bcrypt($request->password)]);
 
             return response()->json([
-                'status' => True,
-                "message" => 'Updated Successfully'
+                'status' => true,
+                "message" => 'Updated Successfully',
             ]);
         } else {
             return response()->json([
-                'status' => True,
-                "message" => 'Invalid Email '
+                'status' => true,
+                "message" => 'Invalid Email ',
             ]);
         }
     }
@@ -154,15 +149,15 @@ class ApiController extends Controller
         //Send failed response if request is not valid
         if ($validator->fails()) {
             $message = [
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
             ];
             return response()->json($message, 500);
         }
         if (Hash::check($request->currentpassword, Auth::user()->password)) {
             User::whereId(Auth::user()->id)->update(['password' => bcrypt($request->password)]);
             return response()->json([
-                'status' => True,
-                "message" => 'Updated Successfully'
+                'status' => true,
+                "message" => 'Updated Successfully',
             ]);
         } else {
             return response()->json([
@@ -187,7 +182,7 @@ class ApiController extends Controller
         //Send failed response if request is not valid
         if ($validator->fails()) {
             $message = [
-                'message' => $validator->errors()->first()
+                'message' => $validator->errors()->first(),
             ];
             return response()->json($message, 500);
         }
@@ -213,21 +208,23 @@ class ApiController extends Controller
         }
         $trialEndDate = Carbon::parse($user->trial_end);
         if (!$trialEndDate->isFuture()) {
-            $user->trial_end =true;
+            $user->trial_end = true;
         } else {
             $user->trial_end = false;
         }
         $coupon = UserCoupon::with('coupon')->where('user_id', $user->id)->get();
-        foreach ($coupon as $coup){
-            if(UsedCoupon::where(['user_id'=>Auth::user()->id,'coupon_id'=>$coup->coupon->id])->exists()){
-                $coup->used =true;
-            }else{
-                $coup->used =false;
+        foreach ($coupon as $coup) {
+            if (UsedCoupon::where(['user_id' => Auth::user()->id, 'coupon_id' => $coup->coupon->id])->exists()) {
+                $coup->used = true;
+            } else {
+                $coup->used = false;
             }
         }
 
         $adminsymptom = User::with('symptom')->where('role', 1)->get();
         $subscription = Subscription::where('user_id', $user->id)->first();
+        $date = Carbon::now()->startOfDay();
+        $isDailyAdded = Mood::isDailyAdded($user->id);
         //Token created, return with success response and jwt token
         return response()->json([
             'success' => true,
@@ -235,7 +232,8 @@ class ApiController extends Controller
             'user_details' => $user,
             'adminsymptom' => $adminsymptom,
             'subscription' => $subscription,
-            'promocode'=>$coupon
+            'promocode' => $coupon,
+            'is_daily_added' => $isDailyAdded,
         ]);
     }
 
@@ -243,7 +241,7 @@ class ApiController extends Controller
     {
         //valid credential
         $validator = Validator::make($request->only('token'), [
-            'token' => 'required'
+            'token' => 'required',
         ]);
 
         //Send failed response if request is not valid
@@ -257,16 +255,15 @@ class ApiController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'User has been logged out'
+                'message' => 'User has been logged out',
             ]);
         } catch (JWTException $exception) {
             return response()->json([
                 'success' => false,
-                'message' => 'Sorry, user cannot be logged out'
+                'message' => 'Sorry, user cannot be logged out',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 
     public function forgot(Request $request)
     {
@@ -279,7 +276,7 @@ class ApiController extends Controller
 
                 return [
                     'status' => true,
-                    'message' => __($status)
+                    'message' => __($status),
                 ];
             } else {
                 return [
@@ -289,12 +286,12 @@ class ApiController extends Controller
             }
             return response()->json([
                 'status' => true,
-                "message" => 'Reset password link sent on your email address.'
+                "message" => 'Reset password link sent on your email address.',
             ]);
         } else {
             return response()->json([
                 'status' => false,
-                "message" => 'Email Id is not Exist '
+                "message" => 'Email Id is not Exist ',
             ]);
         }
     }
@@ -304,7 +301,7 @@ class ApiController extends Controller
 
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
-            'code' => 'required'
+            'code' => 'required',
         ]);
 
         //Send failed response if request is not valid
@@ -322,28 +319,25 @@ class ApiController extends Controller
         if ($user->code_expiry < $now) {
             return response()->json([
                 'status' => true,
-                "message" => 'Verification Code Expired'
+                "message" => 'Verification Code Expired',
             ]);
         } else {
             if ($request->code == $user->verification_code) {
                 // Password::sendResetLink($credentials);
 
-
-
                 return response()->json([
                     'status' => true,
-                    "message" => 'Success.'
+                    "message" => 'Success.',
                 ]);
             } else {
                 return response()->json([
                     'status' => false,
-                    "message" => 'Please enter correct verification code'
+                    "message" => 'Please enter correct verification code',
 
                 ]);
             }
         }
     }
-
 
     public function get_user(Request $request)
     {
@@ -351,13 +345,14 @@ class ApiController extends Controller
         $user = JWTAuth::authenticate($request->bearerToken());
         $subscription = Subscription::where('user_id', $user->id)->first();
         $coupon = UserCoupon::with('coupon')->where('user_id', $user->id)->get();
-        foreach ($coupon as $coup){
-            if(UsedCoupon::where(['user_id'=>Auth::user()->id,'coupon_id'=>$coup->coupon->id])->exists()){
-                $coup->used =true;
-            }else{
-                $coup->used =false;
+        foreach ($coupon as $coup) {
+            if (UsedCoupon::where(['user_id' => Auth::user()->id, 'coupon_id' => $coup->coupon->id])->exists()) {
+                $coup->used = true;
+            } else {
+                $coup->used = false;
             }
         }
+        $isDailyAdded = Mood::isDailyAdded($user->id);
         $adminsymptom = User::with('symptom')->where('role', 1)->get();
         return response()->json([
             "status" => true,
@@ -365,10 +360,9 @@ class ApiController extends Controller
             'subscription' => $subscription,
             'adminsymptom' => $adminsymptom,
             'promocode' => $coupon,
+            'is_daily_added' => $isDailyAdded,
         ]);
     }
-
-
 
     public function socialloginwith()
     {
@@ -418,7 +412,7 @@ class ApiController extends Controller
 
             $ex = User::where('email', $email)->first();
 
-            if ($ex->provider_name == Null) {
+            if ($ex->provider_name == null) {
 
                 $email = $email;
                 $password = Hash::make($request->password);
@@ -480,21 +474,21 @@ class ApiController extends Controller
             "message" => "Deleted Successfully",
         ]);
     }
-    public function applyCoupon($couponid){
+    public function applyCoupon($couponid)
+    {
 
-        $coupon =Coupon::find($couponid);
-        if(UsedCoupon::where(['user_id'=>Auth::user()->id,'coupon_id'=>$couponid])->exists()){
-          $message ='You have already Used';
-        }else{
+        $coupon = Coupon::find($couponid);
+        if (UsedCoupon::where(['user_id' => Auth::user()->id, 'coupon_id' => $couponid])->exists()) {
+            $message = 'You have already Used';
+        } else {
             $user = User::find(Auth::user()->id);
             $user->trial_end = Carbon::now()->addDays($coupon->days);
             $user->save();
-            UsedCoupon::create(['user_id'=>Auth::user()->id,'coupon_id'=>$couponid]);
-            $message ='Coupon Applied';
+            UsedCoupon::create(['user_id' => Auth::user()->id, 'coupon_id' => $couponid]);
+            $message = 'Coupon Applied';
         }
 
-
-        return \response()->json(['status'=>true,'message'=>$message]);
+        return \response()->json(['status' => true, 'message' => $message]);
     }
 
 }

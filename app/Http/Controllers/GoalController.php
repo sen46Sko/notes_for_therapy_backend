@@ -13,12 +13,20 @@ class GoalController extends Controller
 {
     /**
      * Display a listing of the resource.
+     * @param  \Illuminate\Http\Request  $request
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        $goal =Goal::where('user_id',Auth::user()->id)->get();
+        $archived = $request->query('archived');
+        if ($archived == null) {
+            $archived = false;
+        }
+        $goal = Goal::where('user_id', Auth::user()->id)->where(
+            "archived",
+            $archived
+        )->get();
         return response()->json([
             'success' => true,
             'data' => $goal
@@ -44,13 +52,13 @@ class GoalController extends Controller
     public function store(Request $request)
     {
 
-        if (Goal::where(['title'=>$request->title,'user_id'=>Auth::user()->id])->exists()) {
+        if (Goal::where(['title' => $request->title, 'user_id' => Auth::user()->id])->exists()) {
             $message = [
                 'message' => "Goal has already been entered"
             ];
-            return response()->json($message,500);
+            return response()->json($message, 500);
         }
-        $goal =Goal::create($request->all()+['user_id'=>Auth::user()->id]);
+        $goal = Goal::create($request->all() + ['user_id' => Auth::user()->id]);
         return response()->json([
             'success' => true,
             'data' => $goal
@@ -101,16 +109,16 @@ class GoalController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function destroy( Goal $goal)
+    public function destroy(Goal $goal)
     {
         try {
             $goal->delete();
-            $message ="Deleted Successfully";
+            $message = "Deleted Successfully";
         }
 
-//catch exception
-        catch(\Exception $e) {
-            $message ="Goal Already use in Notes";
+        //catch exception
+        catch (\Exception $e) {
+            $message = "Goal Already use in Notes";
         }
 
         return response()->json([

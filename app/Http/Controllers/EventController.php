@@ -16,8 +16,8 @@ class EventController extends Controller
      */
     public function index()
     {
-        $data =Event::where('user_id',Auth::user()->id)->get();
-        return \response()->json(['status'=>true,'data'=>$data]);
+        $data = Event::where('user_id', Auth::user()->id)->get();
+        return \response()->json(['status' => true, 'data' => $data]);
     }
 
     /**
@@ -38,10 +38,11 @@ class EventController extends Controller
      */
     public function store(Request $request)
     {
-        Event::create($request->all()+['user_id'=>Auth::user()->id]);
+        $event = Event::create($request->all() + ['user_id' => Auth::user()->id]);
         return response()->json([
             'success' => true,
-           'message'=>'Created Successfully'
+            'data' => $event,
+            'message' => 'Created Successfully'
         ]);
     }
 
@@ -74,11 +75,12 @@ class EventController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Event $event)
     {
-        Event::find($id)->update($request->all());
+        $event->fill($request->post())->save();
         return response()->json([
             'success' => true,
+            'data' => $event,
             'message' => "Event Updated Successfully"
         ], Response::HTTP_OK);
     }

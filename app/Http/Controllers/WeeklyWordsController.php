@@ -2,23 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Symptom;
+use App\Models\WeeklyWord;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
-use Auth;
-class SymptomController extends Controller
+
+class WeeklyWordsController extends Controller
 {
-    /**
+     /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
      */
     public function index()
     {
+        $weeklyWord = WeeklyWord::where('user_id', Auth::user()->id)->get();
 
         return response()->json([
             'success' => true,
-            'data' => Symptom::where('user_id',Auth::user()->id)->get(),
+            'data' => $weeklyWord
         ], Response::HTTP_OK);
     }
 
@@ -40,11 +42,16 @@ class SymptomController extends Controller
      */
     public function store(Request $request)
     {
-        $symptom = Symptom::create($request->all()+['user_id'=>Auth::user()->id]);
+        // Validator::make($request->all(), [
+        //     'weekly_rating' => 'required',
+        //     'previous_week_description' => 'required',
+        // ])->validate();
+        $data = $request->all();
+        $weeklyWord = WeeklyWord::create($data + ['user_id' => Auth::user()->id]);
+
         return response()->json([
             'success' => true,
-            'message' => "Symptom Added Succesfully",
-            'data' => $symptom
+            'data' => $weeklyWord
         ], Response::HTTP_OK);
     }
 
@@ -79,10 +86,12 @@ class SymptomController extends Controller
      */
     public function update(Request $request, $id)
     {
-        Symptom::find($id)->update($request->all());
+        $data = $request->all();
+        WeeklyWord::find($id)->update($data);
+        $weeklyWord = WeeklyWord::find($id);
         return response()->json([
             'success' => true,
-            'message' => "Symptom Updated Successfully"
+            'data' => $weeklyWord
         ], Response::HTTP_OK);
     }
 
@@ -94,10 +103,11 @@ class SymptomController extends Controller
      */
     public function destroy($id)
     {
-        Symptom::find($id)->delete();
+        WeeklyWord::find($id)->delete();
         return response()->json([
             'success' => true,
-            'message' => "Delete Successfully"
+            'message' => "Deleted Successfully"
         ], Response::HTTP_OK);
     }
+
 }

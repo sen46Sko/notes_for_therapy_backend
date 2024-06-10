@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateSymptomTrackingsTable extends Migration
+class CreateWeeklyWordsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,13 +13,13 @@ class CreateSymptomTrackingsTable extends Migration
      */
     public function up()
     {
-        Schema::create('symptom_trackings', function (Blueprint $table) {
+        Schema::create('weekly_words', function (Blueprint $table) {
             $table->id();
-            $table->integer('user_id');
-            $table->integer('symptom_id');
-            $table->integer('rating');
-            $table->text('comment');
-            $table->dateTime('date');
+            $table->string('word');
+            $table->unsignedInteger('user_id');
+            $table->foreign('user_id')
+                ->on('users')
+                ->references('id');
             $table->timestamps();
         });
     }
@@ -31,6 +31,6 @@ class CreateSymptomTrackingsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('symptom_trackings');
+        Schema::dropIfExists('weekly_words');
     }
 }

@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Helper\StorageHelper;
 use Illuminate\Http\Request;
+use Storage;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\HomeworkModel;
 use Auth;
+
 class HomeWorkController extends Controller
 {
+    private function storeFile($request) {
+        return (new StorageHelper($request->user()->id, 'homework'))->storeFile($request->file('file'));
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -15,7 +22,7 @@ class HomeWorkController extends Controller
      */
     public function index()
     {
-        $home =HomeworkModel::where('user_id',Auth::user()->id)->get();
+        $home = HomeworkModel::where('user_id', Auth::user()->id)->get();
         return response()->json([
             'success' => true,
             'data' => $home
@@ -40,15 +47,23 @@ class HomeWorkController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $request->only('short_description','description','thoughts');
+        $data = $request->only('short_description', 'description', 'thoughts');
 
-        if($request->hasFile('file')){
-            $path = $request->file('file')->store('homework');
-            $data['file']=$path;
+        if ($request->hasFile('file')) {
+            // $path = $request->file('file')->store('homework');
+            // $data['file']=$path;
+            $path = $this->storeFile($request);
+            if ($path == null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File Upload Failed',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+            $data['file'] = $path;
         }
 
 
-        $home =HomeworkModel::create($data +['user_id'=>Auth::user()->id]);
+        $home = HomeworkModel::create($data + ['user_id' => Auth::user()->id]);
         return response()->json([
             'success' => true,
             'data' => $home
@@ -86,15 +101,32 @@ class HomeWorkController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $data= $request->except('file');
-        if($request->hasfile('file')) {
-            $path = $request->file('file')->store('homework');
-            $data['file'] =$path;
+        $data = $request->except('file');
+        if ($request->hasfile('file')) {
+            // $path = $request->file('file')->store('homework');
+            // $file = $request->file('file');
+            $path = $this->storeFile($request);
+            if ($path == null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File Upload Failed',
+                ], Response::HTTP_INTERNAL_SERVER_ERROR);
+            }
+            $data['file'] = $path;
         }
-        HomeworkModel::where('id',$id)->update($data);
+        // $updatedHomework = HomeworkModel::where('id',$id)->update($data);
+        $success = HomeworkModel::where('id', $id)->update($data);
+        if (!$success) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Update Failed',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+        $updatedHomework = HomeworkModel::find($id);
         return response()->json([
             'success' => true,
-            'message' => 'Update Successfully'
+            'message' => 'Update Successfully',
+            'data' => $updatedHomework
         ], Response::HTTP_OK);
     }
 

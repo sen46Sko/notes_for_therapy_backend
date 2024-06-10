@@ -187,7 +187,8 @@ class GoalTrackingController extends Controller
     {
 
         $date = new \DateTime("now", new \DateTimeZone($request->timezone));
-
+        // Write artisan command to create a new migration
+        // php artisan make:migration change_int_to_string_subscriptions_subscription_id
         foreach ($request->goal_id as $key => $value) {
             if (isset($request->comments[$key])) {
                 GoalTracking::create([

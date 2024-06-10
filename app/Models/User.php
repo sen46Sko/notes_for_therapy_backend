@@ -39,8 +39,12 @@ class User extends Authenticatable implements JWTSubject
         'user',
         'verify_status',
         'trial_start',
-            'trial_end',
-        
+        'trial_end',
+
+        // OTP
+        'otp_code',
+        'otp_expires',
+
     ];
 
     /**

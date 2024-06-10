@@ -1,5 +1,11 @@
 <?php
 
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\MoodController;
+use App\Http\Controllers\MoodFeelingController;
+use App\Http\Controllers\MoodRelationController;
+use App\Http\Controllers\StripeControllerV2;
+use App\Http\Controllers\WeeklyWordsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
@@ -39,7 +45,25 @@ Route::get('getcountry', [ApiController::class, 'getcountry']);
 Route::get('getstates/{countryid}', [ApiController::class, 'getstates']);
 Route::get('getcities/{stateid}', [ApiController::class, 'getcities']);
 
+// Google OAuth
+Route::post('auth/google', [AuthController::class, 'googleOAuth']);
+
+// Route::get('auth/google', [AuthController::class, 'redirectToProvider']);
+// Route::get('auth/google/callback', [AuthController::class, 'handleProviderCallback']);
+
+// Password reset V2
+
+Route::get("auth/request_password_change", [AuthController::class, 'requestPasswordChange']);
+Route::get("auth/check_otp", [AuthController::class, 'checkOtp']);
+Route::post("auth/change_password", [AuthController::class, 'changePassword']);
+
 //    End Authentication
+
+
+//  Stripe Webhook
+
+Route::post('webhook/stripe', [StripeControllerV2::class, 'webhook']);
+
 
 Route::group(['middleware' => ['jwt.verify']], function () {
 
@@ -97,14 +121,40 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::get('tracking_rating_word', [TackingController::class, 'tracking_rating_word']);
     //    End Tracking
 
+    // Start Mood
+    // routes/api.php
+
+    Route::post('/mood', [MoodController::class, 'store']);
+    Route::delete('/mood/{id}', [MoodController::class, 'destroy']);
+    Route::get('/mood-by-date', [MoodController::class, 'getMoodByDate']);
+    Route::get('/mood-info', [MoodController::class, 'getMoodInfo']);
+    Route::get('/mood-weekly-report', [MoodController::class, 'getWeeklyReport']);
+    Route::get('/mood-monthly-report', [MoodController::class, 'getMonthlyReport']);
+
+    Route::apiResource('mood-relations', MoodRelationController::class);
+    Route::apiResource('mood-feelings', MoodFeelingController::class);
+
+    // End Mood
 
     //     Start HomeWork
     Route::resource('homework', HomeWorkController::class);
     Route::post('updatehomework/{id}', [HomeWorkController::class, 'update']);
     //    End HomeWork
+
+    //    Start Weekly Word
+    Route::resource('words', WeeklyWordsController::class);
+    //    End Weekly Word
+
+    Route::post('setup_intent', [StripeController::class, 'setupIntent']);
     Route::post('subscribe',  [StripeController::class, 'subscribe']);
     Route::post('payment', [StripeController::class, 'payment']);
-    Route::get('get_plans', [StripeController::class, 'get_plans']);
-    Route::get('cancel_subscription', [StripeController::class, 'cancel_subscription']);
+    // Route::get('get_plans', [StripeController::class, 'get_plans']);
+    // Route::get('cancel_subscription', [StripeController::class, 'cancel_subscription']);
+
+    // Start Stripe Controller Version 2.0
+    Route::get('get_subscription', [StripeControllerV2::class, 'get_subscription']);
+    Route::get('get_prices', [StripeControllerV2::class, 'get_prices']);
+    Route::post('initialize_subscription', [StripeControllerV2::class, 'initialize_subscription']);
+    Route::get('cancel_subscription', [StripeControllerV2::class, 'cancel_subscription']);
     Route::get('applyCoupon/{couponid}', [ApiController::class, 'applyCoupon']);
 });
