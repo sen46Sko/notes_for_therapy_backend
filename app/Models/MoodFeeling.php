@@ -11,5 +11,6 @@ class MoodFeeling extends Model
 
     protected $fillable = [
         'name',
+        'color',
     ];
 }

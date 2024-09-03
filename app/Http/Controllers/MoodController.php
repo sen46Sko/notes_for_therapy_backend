@@ -88,9 +88,11 @@ class MoodController extends Controller
 
         $moods = Mood::where('user_id', $userId)
             ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+            ->with('moodFeelings')
             ->get();
 
         $byDays = array_fill(0, 7, []);
+        $weekFeelingsCounts = [];
         $currentWeekPositiveCount = 0;
         $currentWeekNegativeCount = 0;
 
@@ -98,12 +100,24 @@ class MoodController extends Controller
             $dayIndex = (Carbon::parse($mood->created_at)->dayOfWeek + 6) % 7;
             $byDays[$dayIndex][] = $mood->value;
 
+            // Append mood->mood_feelings to weekFeelingsCounts, like using array_merge
+            $weekFeelingsCounts = array_merge($weekFeelingsCounts, $mood->moodFeelings->toArray());
             if ($mood->value > 55) {
                 $currentWeekPositiveCount++;
             } elseif ($mood->value < 45) {
                 $currentWeekNegativeCount++;
             }
         }
+
+        $totalFeelings = count($weekFeelingsCounts);
+        $weekFeelingsCounts = collect($weekFeelingsCounts)->groupBy('id')->map(function($group) use ($totalFeelings) {
+            $first = $group->first();
+            return [
+                'name' => $first['name'],
+                'color' => $first['color'],
+                'count' => number_format(($group->count() / $totalFeelings * 100), 0) . '%',
+            ];
+        })->values();
 
         $currentWeekTotalCount = $currentWeekPositiveCount + $currentWeekNegativeCount;
 
@@ -138,6 +152,7 @@ class MoodController extends Controller
 
         return response()->json([
             'byDays' => $byDays,
+            'weekFeelingsCounts' => $weekFeelingsCounts,
             'positiveDiff' => $positiveDiff,
             'negativeDiff' => $negativeDiff,
         ]);
@@ -164,6 +179,7 @@ class MoodController extends Controller
         // Fetch moods for the specified month
         $moods = Mood::where('user_id', $userId)
             ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
+            ->with('moodFeelings')
             ->get();
 
         $calendarMoods = Mood::where('user_id', $userId)
@@ -173,6 +189,7 @@ class MoodController extends Controller
         // Initialize variables
         $daysInMonth = $endOfMonth->day;
         $byDays = array_fill(0, $daysInMonth, []);
+        $monthFeelingsCounts = [];
         $calendarByDays = [];
         $currentMonthPositiveCount = 0;
         $currentMonthNegativeCount = 0;
@@ -181,6 +198,7 @@ class MoodController extends Controller
         foreach ($moods as $mood) {
             $dayIndex = Carbon::parse($mood->created_at)->day - 1;
             $byDays[$dayIndex][] = $mood->value;
+            $monthFeelingsCounts = array_merge($monthFeelingsCounts, $mood->moodFeelings->toArray());
 
             if ($mood->value > 55) {
                 $currentMonthPositiveCount++;
@@ -188,6 +206,15 @@ class MoodController extends Controller
                 $currentMonthNegativeCount++;
             }
         }
+        $totalFeelings = count($monthFeelingsCounts);
+        $monthFeelingsCounts = collect($monthFeelingsCounts)->groupBy('id')->map(function($group) use ($totalFeelings) {
+            $first = $group->first();
+            return [
+                'name' => $first['name'],
+                'color' => $first['color'],
+                'count' => number_format(($group->count() / $totalFeelings * 100), 0) . '%',
+            ];
+        })->values();
 
         for ($date = $startOfCalendarMonth->copy(); $date->lte($endOfCalendarMonth); $date->addDay()) {
             $dateString = $date->format('d-m-Y');
@@ -241,6 +268,7 @@ class MoodController extends Controller
         return response()->json([
             'byDays' => $byDays,
             'byCalendarDays' => $byCalendarDays,
+            'monthFeelingsCounts' => $monthFeelingsCounts,
             'positiveDiff' => $positiveDiff,
             'negativeDiff' => $negativeDiff,
         ]);

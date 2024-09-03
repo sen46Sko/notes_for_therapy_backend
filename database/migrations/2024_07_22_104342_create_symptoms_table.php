@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class AddNoteIdToTrackingsTable extends Migration
+class CreateSymptomsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,11 +13,12 @@ class AddNoteIdToTrackingsTable extends Migration
      */
     public function up()
     {
-        Schema::table('trackings', function (Blueprint $table) {
-            $table->unsignedInteger('note_id')->nullable();
-            $table->foreign('note_id')
-                ->on('notes')
-                ->references('id');
+        Schema::create('symptoms', function (Blueprint $table) {
+            $table->increments('id');
+            $table->timestamps();
+
+            $table->string('name');
+            $table->string('color');
         });
     }
 
@@ -28,8 +29,6 @@ class AddNoteIdToTrackingsTable extends Migration
      */
     public function down()
     {
-        Schema::table('trackings', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('symptoms');
     }
 }

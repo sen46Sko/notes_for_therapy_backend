@@ -16,6 +16,7 @@ class HomeworkModel extends Model
         'short_description',
         'file',
         'description',
-        'thoughts'
+        'thoughts',
+        'notification_message'
     ];
 }

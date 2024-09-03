@@ -45,6 +45,10 @@ class User extends Authenticatable implements JWTSubject
         'otp_code',
         'otp_expires',
 
+        // New columns
+        'gender',
+        'age',
+
     ];
 
     /**
@@ -98,7 +102,14 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(ParentNote::class);
     }
 
-    public function symptom(){
-        return $this->hasMany(Symptom::class);
+    public function userSymptoms()
+    {
+        return $this->hasMany(UserSymptom::class);
+    }
+
+    public function routeNotificationForFcm() {
+        return $this->fcm_token;
+        // TODO: replace with actual fcm_token;
+        // return 'cTwW9F5o90XKr4_XazRCAB:APA91bE--S6kalDIeCxJUeeFebwCY6Mh0mPNoJzhdSRZO0Q7NdgrokCtSo-sxw7HadLSQfBrtJRV_TDKNQowcikNDxscLWR_zay0F3kEWMdBNquX9fOQgDIdkzBG4bcpeyZCYoUQnWNd';
     }
 }

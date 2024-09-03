@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateGoalTrackingsTable extends Migration
+class CreateNotesQuestionsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,12 +13,9 @@ class CreateGoalTrackingsTable extends Migration
      */
     public function up()
     {
-        Schema::create('goal_trackings', function (Blueprint $table) {
-            $table->id();
-            $table->integer('user_id');
-            $table->integer('goal_id');
-            $table->integer('rating');
-            $table->text('comment');
+        Schema::create('note_questions', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('title');
             $table->timestamps();
         });
     }
@@ -30,6 +27,6 @@ class CreateGoalTrackingsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('goal_trackings');
+        Schema::dropIfExists('note_questions');
     }
 }

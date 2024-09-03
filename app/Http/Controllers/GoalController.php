@@ -3,127 +3,193 @@
 namespace App\Http\Controllers;
 
 use App\Models\Goal;
-use App\Models\Note;
+use App\Models\GoalTemplate;
+use App\Models\Notification;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Auth;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 
 class GoalController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     * @param  \Illuminate\Http\Request  $request
-     *
-     * @return \Illuminate\Http\Response
-     */
     public function index(Request $request)
     {
-        $archived = $request->query('archived');
-        if ($archived == null) {
-            $archived = false;
+        if ($request->has('date')) {
+            $date = $request->input('date');
+            $dayStart = Carbon::parse($date)->startOfDay();
+            $dayEnd = Carbon::parse($date)->endOfDay();
+            $goals = Goal::where('user_id', auth()->id())
+                ->whereBetween('remind_at', [$dayStart, $dayEnd])
+                ->with('notification')
+                ->get();
+        } else {
+            $goals = Goal::where('user_id', auth()->id())
+                ->with('notification')
+                ->get();
         }
-        $goal = Goal::where('user_id', Auth::user()->id)->where(
-            "archived",
-            $archived
-        )->get();
-        return response()->json([
-            'success' => true,
-            'data' => $goal
-        ], Response::HTTP_OK);
+        return response()->json($goals);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
+        // $validatedData = $request->validate([
+        //     'title' => 'required|string',
+        //     'note' => 'nullable|string',
+        //     'completed_at' => 'nullable|date',
+        //     'notification_message' => 'nullable|string',
+        //     'remind_at' => 'nullable|date',
+        //     'repeat' => 'nullable|json',
+        // ], [
+        //     'title.required' => 'The title field is required.',
+        // ]);
 
-        if (Goal::where(['title' => $request->title, 'user_id' => Auth::user()->id])->exists()) {
-            $message = [
-                'message' => "Goal has already been entered"
-            ];
-            return response()->json($message, 500);
-        }
-        $goal = Goal::create($request->all() + ['user_id' => Auth::user()->id]);
-        return response()->json([
-            'success' => true,
-            'data' => $goal
-        ], Response::HTTP_OK);
-    }
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string',
+            'note' => 'nullable|string',
+            'completed_at' => 'nullable|date',
+            'notification_message' => 'nullable|string',
+            'remind_at' => 'nullable|date',
+            'repeat' => 'nullable|json',
+        ], [
+            'title.required' => 'The title field is required.',
+        ]);
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show($id)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Goal $goal)
-    {
-        $goal->fill($request->post())->save();
-        return response()->json([
-            'success' => true,
-            'data' => $goal
-        ], Response::HTTP_OK);
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Goal $goal)
-    {
-        try {
-            $goal->delete();
-            $message = "Deleted Successfully";
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
         }
 
-        //catch exception
-        catch (\Exception $e) {
-            $message = "Goal Already use in Notes";
+        $validatedData = $validator->validated();
+
+        $validatedData['user_id'] = auth()->id();
+        if (isset($validatedData['remind_at'])) {
+            $validatedData['remind_at'] = Carbon::parse($validatedData['remind_at']);
+        }
+        if (isset($validatedData['completed_at'])) {
+            $validatedData['completed_at'] = Carbon::parse($validatedData['completed_at']);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => $message
-        ], Response::HTTP_OK);
+
+        if (isset($validatedData['remind_at'])) {
+            $notification = Notification::create([
+                'user_id' => $validatedData['user_id'],
+                'show_at' => $validatedData['remind_at'],
+                'status' => 'Pending',
+                'type' => 'Goal',
+                'title' => 'Goal Reminder',
+                'description' => $validatedData['notification_message'] ?? $validatedData['title'],
+                'repeat' => $validatedData['repeat'],
+                'entity_id' => null, // We'll update this after creating the goal
+            ]);
+
+            $validatedData['notification_id'] = $notification->id;
+        }
+
+
+        $goal = Goal::create($validatedData);
+
+        if (isset($notification)) {
+            $notification->update(['entity_id' => $goal->id]);
+        }
+
+
+        GoalTemplate::firstOrCreate(
+            ['title' => $validatedData['title'], 'user_id' => $validatedData['user_id']],
+            $validatedData
+        );
+
+        return response()->json($goal, 201);
+    }
+
+    public function show(Request $request, $id)
+    {
+        $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
+        return response()->json($goal);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
+
+        // $validatedData = $request->validate([
+        //     'title' => 'sometimes|required|string',
+        //     'note' => 'nullable|string',
+        //     'completed_at' => 'nullable|date',
+        //     'notification_message' => 'nullable|string',
+        //     'remind_at' => 'nullable|date',
+        //     'repeat' => 'nullable|json',
+        // ]);
+
+        $validator = Validator::make($request->all(), [
+            'title' => 'sometimes|required|string',
+            'note' => 'nullable|string',
+            'completed_at' => 'nullable|date',
+            'notification_message' => 'nullable|string',
+            'remind_at' => 'nullable|date',
+            'repeat' => 'nullable|json',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $validatedData = $validator->validated();
+
+        if (isset($validatedData['remind_at'])) {
+            $validatedData['remind_at'] = Carbon::parse($validatedData['remind_at']);
+        }
+        if (isset($validatedData['completed_at'])) {
+            $validatedData['completed_at'] = Carbon::parse($validatedData['completed_at']);
+        }
+
+        if (!$goal->notification_id && isset($validatedData['remind_at'])) {
+            // Create Notification
+            $notification = Notification::create([
+                'user_id' => auth()->id(),
+                'show_at' => $validatedData['remind_at'],
+                'status' => 'Pending',
+                'type' => 'Goal',
+                'title' => 'Goal Reminder',
+                'description' => $validatedData['notification_message'] ?? $validatedData['title'] ?? $goal->title,
+                'repeat' => $validatedData['repeat'] ?? null,
+                'entity_id' => $goal->id,
+            ]);
+
+            $validatedData['notification_id'] = $notification->id;
+        } elseif ($goal->notification_id && !isset($validatedData['remind_at'])) {
+            // Delete Notification
+            if ($goal->notification_id) {
+                Notification::where('user_id', auth()->id())
+                    ->where('id', $goal->notification_id)
+                    ->delete();
+            }
+            $validatedData['notification_id'] = null;
+        } elseif ($goal->notification_id && isset($validatedData['remind_at'])) {
+            // Update Notification
+            Notification::where('user_id', auth()->id())
+                ->where('id', $goal->notification_id)
+                ->update([
+                    'show_at' => $validatedData['remind_at'],
+                    'description' => $validatedData['notification_message'] ?? $validatedData['title'] ?? $goal->title,
+                    'repeat' => $validatedData['repeat'] ?? null,
+                ]);
+        }
+
+        $goal->update($validatedData);
+
+        return response()->json($goal);
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
+
+        if ($goal->notification_id) {
+            Notification::where('user_id', auth()->id())
+                ->where('id', $goal->notification_id)
+                ->delete();
+        }
+
+        $goal->delete();
+
+        return response()->json(null, 204);
     }
 }

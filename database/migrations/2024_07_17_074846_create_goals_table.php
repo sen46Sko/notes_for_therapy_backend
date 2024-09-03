@@ -15,12 +15,19 @@ class CreateGoalsTable extends Migration
     {
         Schema::create('goals', function (Blueprint $table) {
             $table->increments('id');
+            $table->timestamps();
+
             $table->string('title');
+            $table->text('note')->nullable();
+            $table->timestamp('completed_at')->nullable();
+            $table->string('notification_message')->nullable();
+            $table->timestamp('remind_at')->nullable();
+            $table->json('repeat')->nullable();
+
             $table->unsignedInteger('user_id')->nullable();
             $table->foreign('user_id')
                 ->on('users')
                 ->references('id');
-            $table->timestamps();
         });
     }
 

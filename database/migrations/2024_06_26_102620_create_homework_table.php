@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateSymptomsTable extends Migration
+class CreateHomeworkTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,14 +13,19 @@ class CreateSymptomsTable extends Migration
      */
     public function up()
     {
-        Schema::create('symptoms', function (Blueprint $table) {
-            $table->id();
+        Schema::create('homework', function (Blueprint $table) {
+            $table->increments('id');
+            $table->timestamps();
+
             $table->string('title');
-            $table->unsignedInteger('user_id');
+            $table->dateTime('deadline');
+            $table->dateTime('completed_at')->nullable();
+
+            $table->unsignedInteger('user_id')->nullable();
             $table->foreign('user_id')
                 ->on('users')
                 ->references('id');
-            $table->timestamps();
+
         });
     }
 
@@ -31,6 +36,6 @@ class CreateSymptomsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('symptoms');
+        Schema::dropIfExists('homework');
     }
 }

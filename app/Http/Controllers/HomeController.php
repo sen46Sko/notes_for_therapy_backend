@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 use App\Models\User;
-use App\Models\Symptom;
-use App\Models\SymptomTracking;
 use App\Models\GoalTracking;
 use App\Models\Goal;
 use App\Models\Note;
@@ -78,9 +76,7 @@ class HomeController extends Controller
             GoalTracking::where('user_id', Auth::user()->id)->delete();
             Goal::where('user_id', Auth::user()->id)->delete();
             Note::where('user_id', Auth::user()->id)->delete();
-            Symptom::where('user_id', Auth::user()->id)->delete();
             UsedCoupon::where('user_id', Auth::user()->id)->delete();
-            SymptomTracking::where('user_id', Auth::user()->id)->delete();
             HomeworkModel::where('user_id', Auth::user()->id)->delete();
             Notification::where('user_id', Auth::user()->id)->delete();
             User::whereId(Auth::user()->id)->delete();

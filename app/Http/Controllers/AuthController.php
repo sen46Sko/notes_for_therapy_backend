@@ -6,6 +6,7 @@ use App\Mail\OtpEmail;
 use App\Models\Subscription;
 use App\Models\UsedCoupon;
 use App\Models\User;
+use App\Models\Onboarding;
 use App\Models\UserCoupon;
 use App\Services\GoogleAuthService;
 use Carbon\Carbon;
@@ -64,8 +65,6 @@ class AuthController extends Controller
         $user = $this->generateOtpForUser($user);
         $user->save();
 
-        // Send OTP to user (example: via email or SMS)
-        // Here you can implement your logic to send the OTP to the user
         Mail::to($user->email)->send(new OtpEmail($user));
 
         return response()->json([
@@ -73,6 +72,37 @@ class AuthController extends Controller
             'message' => 'OTP generated and sent successfully'
         ]);
 
+    }
+
+    public function requestEmailChange(Request $request) {
+        $newEmail = $request->query('email');
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 400);
+        }
+
+        // Check if new email is not being used by another user
+        if (User::where('email', $newEmail)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email already in use'
+            ], 400);
+        }
+
+        $user = $this->generateOtpForUser($user);
+        $user->save();
+
+        Mail::to($newEmail)->send(new OtpEmail($user));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP generated and sent successfully'
+        ]);
     }
 
     public function checkOtp(Request $request)
@@ -138,6 +168,97 @@ class AuthController extends Controller
         ]);
     }
 
+    public function changePasswordAuthorized(Request $request) {
+        $validator = Validator::make($request->all(), [
+            'currentPassword' => ['required'],
+            'password' => ['required'],
+            'confirmPassword' => ['required']
+        ]);
+
+        // Check if user is not created using Google OAuth
+        $user = auth()->user();
+
+        if ($user->is_google_signup == 1) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User created using Google OAuth. Please use Google OAuth to change password.'
+            ], 400);
+        }
+
+        //Send failed response if request is not valid
+        if ($validator->fails()) {
+            $message = [
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ];
+            return response()->json($message, 400);
+        }
+
+        if ($request->password != $request->confirmPassword) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Passwords do not match'
+            ], 400);
+        }
+
+        if (!password_verify($request->currentPassword, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect'
+            ], 400);
+        }
+
+        $user->update([
+            'password' => bcrypt($request->password),
+            'fcm_token' => null
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password changed successfully'
+        ]);
+    }
+
+    public function changeEmail(Request $request) {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required'],
+            'otp_code' => ['required']
+        ]);
+
+        //Send failed response if request is not valid
+        if ($validator->fails()) {
+            $message = [
+                'message' => $validator->errors()->first()
+            ];
+            return response()->json($message, 400);
+        }
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid email or OTP'
+            ], 400);
+        }
+
+        if ($user->otp_expires < Carbon::now()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP expired'
+            ], 400);
+        }
+
+        $user->update([
+            'email' => $request->email,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email changed successfully'
+        ]);
+    }
+
     public function googleOAuth(Request $request)
     {
         try {
@@ -174,16 +295,9 @@ class AuthController extends Controller
                     'message' => 'User already exists with this email. Please login with email and password.'
                 ], 400);
             }
-
-            // Find or create user in your database
-            $user = User::updateOrCreate(
-                ['email' => $googleUser['email']],
-                [
-                    'name' => $googleUser['name'],
-                    'image' => $googleUser['picture'],
-                ]
-            );
-
+            // Update user's FCM token
+            $user->fcm_token = $request->fcm_token;
+            $user->save();
 
             if (!$userToken = JWTAuth::fromUser($user)) {
                 return response()->json(['error' => 'Unauthorized'], 401);
@@ -204,17 +318,24 @@ class AuthController extends Controller
                 }
             }
 
-            $adminsymptom = User::with('symptom')->where('role', 1)->get();
             $subscription = Subscription::where('user_id', $user->id)->first();
+
+            $onboarding = Onboarding::where('user_id', $user->id)->get();
+
+            // Transform onboarding array to [key => value] object
+            $onboarding = $onboarding->mapWithKeys(function ($item) {
+                return [$item['key'] => $item['value']];
+            });
+
             //Token created, return with success response and jwt token
             return response()->json([
                 'success' => true,
                 'token' => $userToken,
                 'user_details' => $user,
-                'adminsymptom' => $adminsymptom,
                 'subscription' => $subscription,
                 'promocode' => $coupon,
                 'just_signed_up' => $is_signup,
+                'onboarding' => $onboarding
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Authentication failed: ' . $e->getMessage()], 401);

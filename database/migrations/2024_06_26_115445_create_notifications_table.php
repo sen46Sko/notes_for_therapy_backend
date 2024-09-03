@@ -15,16 +15,19 @@ class CreateNotificationsTable extends Migration
     {
         Schema::create('notifications', function (Blueprint $table) {
             $table->increments('id');
+            $table->timestamps();
+
+            $table->dateTime('show_at');
+            $table->enum('status', ['Pending', 'Sent', 'Seen', 'Hidden']);
+            $table->string('type'); // 'Calendar', 'Reward', 'Todo', 'Goal'
             $table->string('title');
-            $table->longText('description')->nullable();
+            $table->text('description')->nullable();
+            $table->string('repeat')->nullable();
+
             $table->unsignedInteger('user_id')->nullable();
             $table->foreign('user_id')
                 ->on('users')
                 ->references('id');
-            $table->date('date')->nullable();
-            $table->string('notification_time')->nullable();
-            $table->time('time')->nullable();
-            $table->timestamps();
         });
     }
 

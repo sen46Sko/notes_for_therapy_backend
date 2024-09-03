@@ -9,5 +9,10 @@ class Symptom extends Model
 {
     use HasFactory;
 
-    protected $guarded =[];
+    protected $fillable = ['name', 'color'];
+
+    public function userSymptoms()
+    {
+        return $this->hasMany(UserSymptom::class);
+    }
 }

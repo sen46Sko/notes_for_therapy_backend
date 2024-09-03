@@ -15,7 +15,10 @@ class MoodFeelingController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate(['name' => 'required|string|unique:mood_feelings,name']);
+        $validated = $request->validate([
+            'name' => 'required|string|unique:mood_feelings,name',
+            'color' => 'required|string'
+        ]);
         $moodFeeling = MoodFeeling::create($validated);
         return response()->json($moodFeeling, 201);
     }
@@ -27,7 +30,10 @@ class MoodFeelingController extends Controller
 
     public function update(Request $request, $id)
     {
-        $validated = $request->validate(['name' => 'required|string|unique:mood_feelings,name']);
+        $validated = $request->validate([
+            'name' => 'required|string|unique:mood_feelings,name',
+            'color' => 'required|string'
+        ]);
         $moodFeeling = MoodFeeling::findOrFail($id);
         $moodFeeling->update($validated);
         return response()->json($moodFeeling);

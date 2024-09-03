@@ -24,9 +24,10 @@ cd /var/www/KateLaravel
 # Unzip
 unzip -o deploy.zip
 
-sudo chmod -R 775 /var/www/KateLaravel/storage
 
 sudo chown -R www-data:www-data /var/www/KateLaravel/storage
+
+sudo chmod -R 777 /var/www/KateLaravel/storage
 
 # Remove zip
 rm deploy.zip

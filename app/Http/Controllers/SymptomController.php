@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Symptom;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Auth;
+use App\Models\Symptom;
+
 class SymptomController extends Controller
 {
     /**
@@ -15,21 +14,9 @@ class SymptomController extends Controller
      */
     public function index()
     {
-
-        return response()->json([
-            'success' => true,
-            'data' => Symptom::where('user_id',Auth::user()->id)->get(),
-        ], Response::HTTP_OK);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
         //
+        $symptoms = Symptom::all();
+        return response()->json($symptoms);
     }
 
     /**
@@ -40,12 +27,7 @@ class SymptomController extends Controller
      */
     public function store(Request $request)
     {
-        $symptom = Symptom::create($request->all()+['user_id'=>Auth::user()->id]);
-        return response()->json([
-            'success' => true,
-            'message' => "Symptom Added Succesfully",
-            'data' => $symptom
-        ], Response::HTTP_OK);
+        //
     }
 
     /**
@@ -60,17 +42,6 @@ class SymptomController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -79,11 +50,7 @@ class SymptomController extends Controller
      */
     public function update(Request $request, $id)
     {
-        Symptom::find($id)->update($request->all());
-        return response()->json([
-            'success' => true,
-            'message' => "Symptom Updated Successfully"
-        ], Response::HTTP_OK);
+        //
     }
 
     /**
@@ -94,10 +61,6 @@ class SymptomController extends Controller
      */
     public function destroy($id)
     {
-        Symptom::find($id)->delete();
-        return response()->json([
-            'success' => true,
-            'message' => "Delete Successfully"
-        ], Response::HTTP_OK);
+        //
     }
 }

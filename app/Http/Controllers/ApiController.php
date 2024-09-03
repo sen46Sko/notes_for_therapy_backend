@@ -10,10 +10,9 @@ use App\Models\GoalTracking;
 use App\Models\HomeworkModel;
 use App\Models\Mood;
 use App\Models\Note;
+use App\Models\Onboarding;
 use App\Models\Notification;
 use App\Models\Subscription;
-use App\Models\Symptom;
-use App\Models\SymptomTracking;
 use App\Models\Tracking;
 use App\Models\UsedCoupon;
 use App\Models\User;
@@ -60,6 +59,7 @@ class ApiController extends Controller
         } else {
             $path = "";
         }
+
         $date = Carbon::now();
         $user = User::create([
             'name' => $request->name,
@@ -221,37 +221,37 @@ class ApiController extends Controller
             }
         }
 
-        $adminsymptom = User::with('symptom')->where('role', 1)->get();
         $subscription = Subscription::where('user_id', $user->id)->first();
         $date = Carbon::now()->startOfDay();
         $isDailyAdded = Mood::isDailyAdded($user->id);
+        $onboarding = Onboarding::where('user_id', $user->id)->get();
+
+        // Transform onboarding array to [key => value] object
+        $onboarding = $onboarding->mapWithKeys(function ($item) {
+            return [$item['key'] => $item['value']];
+        });
+
         //Token created, return with success response and jwt token
         return response()->json([
             'success' => true,
             'token' => $token,
             'user_details' => $user,
-            'adminsymptom' => $adminsymptom,
             'subscription' => $subscription,
             'promocode' => $coupon,
             'is_daily_added' => $isDailyAdded,
+            'onboarding' => $onboarding,
         ]);
     }
 
     public function logout(Request $request)
     {
-        //valid credential
-        $validator = Validator::make($request->only('token'), [
-            'token' => 'required',
-        ]);
-
-        //Send failed response if request is not valid
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->messages()], 200);
-        }
-
         //Request is validated, do logout
         try {
-            JWTAuth::invalidate($request->token);
+
+            $user = auth()->user();
+
+            $user->fcm_token = null;
+            $user->save();
 
             return response()->json([
                 'success' => true,
@@ -261,6 +261,45 @@ class ApiController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Sorry, user cannot be logged out',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function delete_account(Request $request)
+    {
+        //Request is validated, do logout
+
+        $validator = Validator::make($request->all(), [
+            'password' => 'required|string|min:6|max:50',
+        ]);
+
+        //Send failed response if request is not valid
+        if ($validator->fails()) {
+            $message = [
+                'message' => $validator->errors()->first(),
+            ];
+            return response()->json($message, 500);
+        }
+
+        try {
+            $user = auth()->user();
+
+            if (Hash::check($request->password, $user->password)) {
+                $user->delete();
+                return response()->json([
+                    'success' => true,
+                    'message' => 'User has been deleted',
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password does not match',
+                ], 400);
+            }
+        } catch (JWTException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sorry, user cannot be deleted',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
@@ -353,14 +392,19 @@ class ApiController extends Controller
             }
         }
         $isDailyAdded = Mood::isDailyAdded($user->id);
-        $adminsymptom = User::with('symptom')->where('role', 1)->get();
+        $onboarding = Onboarding::where('user_id', $user->id)->get();
+
+        // Transform onboarding array to [key => value] object
+        $onboarding = $onboarding->mapWithKeys(function ($item) {
+            return [$item['key'] => $item['value']];
+        });
         return response()->json([
             "status" => true,
             'user' => $user,
             'subscription' => $subscription,
-            'adminsymptom' => $adminsymptom,
             'promocode' => $coupon,
             'is_daily_added' => $isDailyAdded,
+            'onboarding' => $onboarding,
         ]);
     }
 
@@ -463,9 +507,7 @@ class ApiController extends Controller
         GoalTracking::where('user_id', Auth::user()->id)->delete();
         Goal::where('user_id', Auth::user()->id)->delete();
         Note::where('user_id', Auth::user()->id)->delete();
-        Symptom::where('user_id', Auth::user()->id)->delete();
         UsedCoupon::where('user_id', Auth::user()->id)->delete();
-        SymptomTracking::where('user_id', Auth::user()->id)->delete();
         HomeworkModel::where('user_id', Auth::user()->id)->delete();
         Notification::where('user_id', Auth::user()->id)->delete();
         User::whereId(Auth::user()->id)->delete();
