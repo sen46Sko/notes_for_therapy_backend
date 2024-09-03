@@ -10,6 +10,38 @@ use Carbon\Carbon;
 
 class HomeworkController extends Controller
 {
+
+
+    private function createOrUpdateNotification(Homework $homework, Request $request)
+    {
+        $notification = Notification::updateOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'type' => 'Homework',
+                'entity_id' => $homework->id,
+            ],
+            [
+                'show_at' => $homework->remind_at,
+                'status' => 'Pending',
+                'title' => 'Homework Reminder',
+                'description' => $request->notification_message ?? $homework->title,
+                'repeat' => $request->repeat,
+            ]
+        );
+
+        $homework->notification_id = $notification->id;
+    }
+
+    private function removeNotification(Homework $homework)
+    {
+        Notification::where('entity_id', $homework->id)
+            ->where('type', 'Homework')
+            ->delete();
+
+        $homework->notification_id = null;
+    }
+
+
     public function index()
     {
         // if date is in params
@@ -143,68 +175,37 @@ class HomeworkController extends Controller
             'repeat' => 'sometimes|nullable|string',
         ]);
 
-        $request['deadline'] = Carbon::parse($request['deadline']);
-        if ($request['completed_at']) {
-            $request['completed_at'] = Carbon::parse($request['completed_at']);
-        }
-        if ($request['remind_at']) {
-            $request['remind_at'] = Carbon::parse($request['remind_at']);
-        }
+        $oldCompletedAt = $homework->completed_at;
+        $oldRemindAt = $homework->remind_at;
 
-        if (!$homework->remind_at && $request['remind_at']) {
-            // Create Notification
-            $notification = Notification::create([
-                'user_id' => auth()->id(),
-                'show_at' => $request['remind_at'],
-                'status' => 'Pending',
-                'type' => 'Homework',
-                'title' => 'Homework Reminder',
-                'description' => $request['notification_message'] || $request['title'],
-                'repeat' => $request['repeat'],
-                'entity_id' => $homework->id,
-            ]);
+        $homework->fill($request->all());
 
-            $request['notification_id'] = $notification->id;
-        } else if ($homework->remind_at && !$request['remind_at']) {
-            // Delete Notification
+        // Parse dates
+        $homework->deadline = $request->has('deadline') ? Carbon::parse($request->deadline) : $homework->deadline;
+        $homework->completed_at = $request->has('completed_at') ? Carbon::parse($request->completed_at) : $homework->completed_at;
+        $homework->remind_at = $request->has('remind_at') ? Carbon::parse($request->remind_at) : $homework->remind_at;
 
-            // Remove notification_id from homework
-            $request['notification_id'] = null;
-
-            $notification = Notification::where('user_id', auth()->id())
-                ->where('id', $homework->notification_id)
-                ->firstOrFail();
-
-            $notification->delete();
-        } else if ($homework->remind_at && $request['remind_at']) {
-            // Update Notification
-            $notification = Notification::where('user_id', auth()->id())
-                ->where('id', $homework->notification_id)
-                ->firstOrFail();
-
-            $notification->update([
-                'show_at' => $request['remind_at'],
-                'description' => $request['notification_message'] || $request['title'],
-            ]);
+        // Handle notification based on completed_at and remind_at
+        if ($homework->completed_at) {
+            // Homework is completed, remove notification
+            $this->removeNotification($homework);
+        } elseif ($homework->remind_at) {
+            // Homework is not completed and has a remind_at date
+            if (!$oldRemindAt || $oldRemindAt != $homework->remind_at) {
+                // Create or update notification
+                $this->createOrUpdateNotification($homework, $request);
+            }
+        } elseif (!$homework->remind_at && $oldRemindAt) {
+            // remind_at was removed, delete notification
+            $this->removeNotification($homework);
         }
 
-        if ($request->has('repeat')) {
-            $notification = Notification::where('id', $homework->notification_id)
-                ->firstOrFail();
-
-            $notification->update(['repeat' => $request['repeat']]);
+        // If homework was completed before and now it's not
+        if ($oldCompletedAt && !$homework->completed_at && $homework->remind_at) {
+            $this->createOrUpdateNotification($homework, $request);
         }
 
-        if ($request['completed_at'] != null) {
-            // Remove notification_id from homework
-            $request['notification_id'] = null;
-
-            $notification = Notification::where('entity_id', $homework->id)
-                ->where('type', 'Homework')
-                ->delete();
-        }
-
-        $homework->fill($request->all())->save();
+        $homework->save();
 
         return response()->json($homework);
     }
