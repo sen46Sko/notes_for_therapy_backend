@@ -6,19 +6,26 @@ use App\Helper\StorageHelper;
 use App\Mail\NewUserEmail;
 use App\Models\Coupon;
 use App\Models\Goal;
+use App\Models\GoalTemplate;
 use App\Models\GoalTracking;
+use App\Models\Homework;
 use App\Models\HomeworkModel;
+use App\Models\HomeworkTemplate;
 use App\Models\Mood;
 use App\Models\Note;
 use App\Models\Onboarding;
 use App\Models\Notification;
 use App\Models\Subscription;
+use App\Models\Symptom;
 use App\Models\Tracking;
 use App\Models\UsedCoupon;
 use App\Models\User;
 use App\Models\UserCoupon;
+use App\Models\UserExperience;
+use App\Models\UserSymptom;
 use Auth;
 use Carbon\Carbon;
+use Google\Service\Analytics\Goals;
 use Hash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -225,6 +232,7 @@ class ApiController extends Controller
         $date = Carbon::now()->startOfDay();
         $isDailyAdded = Mood::isDailyAdded($user->id);
         $onboarding = Onboarding::where('user_id', $user->id)->get();
+        $userExperience = UserExperience::where('user_id', $user->id)->first();
 
         // Transform onboarding array to [key => value] object
         $onboarding = $onboarding->mapWithKeys(function ($item) {
@@ -240,6 +248,7 @@ class ApiController extends Controller
             'promocode' => $coupon,
             'is_daily_added' => $isDailyAdded,
             'onboarding' => $onboarding,
+            'user_experience' => $userExperience,
         ]);
     }
 
@@ -285,7 +294,22 @@ class ApiController extends Controller
             $user = auth()->user();
 
             if (Hash::check($request->password, $user->password)) {
-                $user->delete();
+
+                Goal::where('user_id', $user->id)->delete();
+                GoalTemplate::where('user_id', $user->id)->delete();
+                Homework::where('user_id', $user->id)->delete();
+                HomeworkModel::where('user_id', $user->id)->delete();
+                HomeworkTemplate::where('user_id', $user->id)->delete();
+                Mood::where('user_id', $user->id)->delete();
+                Note::where('user_id', $user->id)->delete();
+                Notification::where('user_id', $user->id)->delete();
+                Onboarding::where('user_id', $user->id)->delete();
+                Subscription::where('user_id', $user->id)->delete();
+                UsedCoupon::where('user_id', $user->id)->delete();
+                UserCoupon::where('user_id', $user->id)->delete();
+                UserSymptom::where('user_id', $user->id)->delete();
+                User::whereId($user->id)->delete();
+
                 return response()->json([
                     'success' => true,
                     'message' => 'User has been deleted',
@@ -393,6 +417,7 @@ class ApiController extends Controller
         }
         $isDailyAdded = Mood::isDailyAdded($user->id);
         $onboarding = Onboarding::where('user_id', $user->id)->get();
+        $userExperience = UserExperience::where('user_id', $user->id)->first();
 
         // Transform onboarding array to [key => value] object
         $onboarding = $onboarding->mapWithKeys(function ($item) {
@@ -405,6 +430,7 @@ class ApiController extends Controller
             'promocode' => $coupon,
             'is_daily_added' => $isDailyAdded,
             'onboarding' => $onboarding,
+            'user_experience' => $userExperience,
         ]);
     }
 

@@ -9,7 +9,7 @@ class GoalTemplateController extends Controller
 {
     public function index(Request $request)
     {
-        $templates = GoalTemplate::where('user_id', $request->user()->id)->get();
+        $templates = GoalTemplate::get();
         return response()->json($templates);
     }
 
@@ -24,7 +24,7 @@ class GoalTemplateController extends Controller
             'repeat.custom' => 'nullable|array',
         ]);
 
-        $validatedData['user_id'] = $request->user()->id;
+        // $validatedData['user_id'] = $request->user()->id;
 
         $template = GoalTemplate::create($validatedData);
         return response()->json($template, 201);
@@ -32,13 +32,13 @@ class GoalTemplateController extends Controller
 
     public function show(Request $request, $id)
     {
-        $template = GoalTemplate::where('user_id', $request->user()->id)->findOrFail($id);
+        $template = GoalTemplate::findOrFail($id);
         return response()->json($template);
     }
 
     public function update(Request $request, $id)
     {
-        $template = GoalTemplate::where('user_id', $request->user()->id)->findOrFail($id);
+        $template = GoalTemplate::findOrFail($id);
 
         $validatedData = $request->validate([
             'title' => 'sometimes|required|string',
@@ -55,7 +55,7 @@ class GoalTemplateController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $template = GoalTemplate::where('user_id', $request->user()->id)->findOrFail($id);
+        $template = GoalTemplate::findOrFail($id);
         $template->delete();
         return response()->json(null, 204);
     }

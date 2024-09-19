@@ -77,34 +77,20 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
-    public function bankDetails()
-    {
-        return $this->hasOne(BankDetails::class);
-    }
-    public function follow(){
-        return $this->hasone(Follow::class,'trainer_id');
-    }
-    public function buildmyworkout(){
-        return $this->hasMany(BuildMyWorkoutModel::class);
-    }
-    public function shareworkout(){
-        return $this->hasMany(ShareWorkout::class,'client_id');
-    }
+
     public function note(){
         return $this->hasMany(Note::class);
-    }
-    public function share_note(){
-
-        return $this->hasMany(ShareNote::class,'client_id');
-
-    }
-    public function parentnote(){
-        return $this->hasMany(ParentNote::class);
     }
 
     public function userSymptoms()
     {
         return $this->hasMany(UserSymptom::class);
+    }
+
+
+    public function userExperience()
+    {
+        return $this->hasOne(UserExperience::class);
     }
 
     public function routeNotificationForFcm() {

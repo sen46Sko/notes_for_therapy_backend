@@ -19,8 +19,10 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\HomeworkTemplateController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\StripeController;
 use App\Http\Controllers\SymptomController;
+use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
 /*
 |--------------------------------------------------------------------------
@@ -128,6 +130,8 @@ Route::group(['middleware' => ['jwt.verify']], function () {
 
     Route::get('/note', [NoteController::class, 'index']);
     Route::post('/note', [NoteController::class, 'store']);
+    Route::put('/note/{id}', [NoteController::class, 'update']);
+    Route::delete('/note/{id}', [NoteController::class, 'destroy']);
     Route::get('/note/activity', [NoteController::class, 'activity']);
     Route::get('/note-questions', [NoteQuestionController::class, 'index']);
 
@@ -139,6 +143,19 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::post('notification/hide/{id}', [NotificationController::class, 'hideById']);
     Route::get('notification_by_date_time/{date}/{time}', [NotificationController::class, 'index']);
     //    End Note//
+
+
+    // Start Problem
+    Route::get('/auth/problems', [ProblemController::class, 'index']);
+    Route::post('/auth/problems', [ProblemController::class, 'store']);
+    // End Problem
+
+
+    // Start User Experience
+
+    Route::apiResource('user-experiences', UserExperienceController::class);
+
+    // End User Experience
 
     //   Start Goal
     // Route::resource('goal', GoalController::class);

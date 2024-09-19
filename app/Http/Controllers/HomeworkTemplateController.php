@@ -9,7 +9,7 @@ class HomeworkTemplateController extends Controller
 {
     public function index()
     {
-        $templates = HomeworkTemplate::where('user_id', auth()->id())->get();
+        $templates = HomeworkTemplate::get();
         return response()->json($templates);
     }
 
@@ -19,7 +19,7 @@ class HomeworkTemplateController extends Controller
             'title' => 'required|string',
         ]);
 
-        $request['user_id'] = auth()->id();
+        // $request['user_id'] = auth()->id();
 
         $template = HomeworkTemplate::create($request->all());
 
@@ -28,7 +28,7 @@ class HomeworkTemplateController extends Controller
 
     public function show($id)
     {
-        $template = HomeworkTemplate::where('id', $id)->where('user_id', auth()->id())->firstOrFail();
+        $template = HomeworkTemplate::where('id', $id)->firstOrFail();
         return response()->json($template);
     }
 
@@ -38,7 +38,7 @@ class HomeworkTemplateController extends Controller
             'title' => 'sometimes|required|string',
         ]);
 
-        $template = HomeworkTemplate::where('id', $id)->where('user_id', auth()->id())->firstOrFail();
+        $template = HomeworkTemplate::where('id', $id)->firstOrFail();
         $template->update($request->all());
 
         return response()->json($template);
@@ -46,7 +46,7 @@ class HomeworkTemplateController extends Controller
 
     public function destroy($id)
     {
-        $template = HomeworkTemplate::where('id', $id)->where('user_id', auth()->id())->firstOrFail();
+        $template = HomeworkTemplate::where('id', $id)->firstOrFail();
         $template->delete();
 
         return response()->json(null, 204);

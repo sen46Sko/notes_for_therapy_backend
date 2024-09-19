@@ -8,6 +8,7 @@ use App\Models\UsedCoupon;
 use App\Models\User;
 use App\Models\Onboarding;
 use App\Models\UserCoupon;
+use App\Models\UserExperience;
 use App\Services\GoogleAuthService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -320,6 +321,7 @@ class AuthController extends Controller
 
             $subscription = Subscription::where('user_id', $user->id)->first();
 
+            $userExperience = UserExperience::where('user_id', $user->id)->first();
             $onboarding = Onboarding::where('user_id', $user->id)->get();
 
             // Transform onboarding array to [key => value] object
@@ -335,7 +337,8 @@ class AuthController extends Controller
                 'subscription' => $subscription,
                 'promocode' => $coupon,
                 'just_signed_up' => $is_signup,
-                'onboarding' => $onboarding
+                'onboarding' => $onboarding,
+                'user_experience' => $userExperience
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Authentication failed: ' . $e->getMessage()], 401);

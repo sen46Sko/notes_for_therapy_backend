@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Goal;
-use App\Models\GoalTemplate;
+// use App\Models\GoalTemplate;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -91,10 +91,10 @@ class GoalController extends Controller
         }
 
 
-        GoalTemplate::firstOrCreate(
-            ['title' => $validatedData['title'], 'user_id' => $validatedData['user_id']],
-            $validatedData
-        );
+        // GoalTemplate::firstOrCreate(
+        //     ['title' => $validatedData['title'], 'user_id' => $validatedData['user_id']],
+        //     $validatedData
+        // );
 
         return response()->json($goal, 201);
     }

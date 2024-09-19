@@ -41,7 +41,7 @@ class HomeController extends Controller
         if (request()->has('search')) {
             $users->where('name', 'Like', '%' . request()->input('search') . '%')
                 ->orWhere('email', 'Like', '%' . request()->input('search') . '%')
-                ->orWhere('age', 'Like', '%' . request()->input('search') . '%');
+                ->orWhere('birthdate', 'Like', '%' . request()->input('search') . '%');
         }
         $users = $users->paginate (5)->setPath ( '' );
         $users->appends(array(

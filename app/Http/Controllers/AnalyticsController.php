@@ -106,8 +106,7 @@ class AnalyticsController extends Controller
 
         $notes = Note::where('user_id', $userId)
             ->where(function ($q) use ($query) {
-                $q->where('title', 'like', "%{$query}%")
-                  ->orWhere('description', 'like', "%{$query}%");
+                $q->where('title', 'like', "%{$query}%");
             })
             ->get();
 

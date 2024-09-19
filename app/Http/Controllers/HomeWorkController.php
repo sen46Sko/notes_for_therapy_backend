@@ -132,10 +132,10 @@ class HomeworkController extends Controller
             $request['notification_id'] = $notification->id;
         }
 
-        $template = HomeworkTemplate::firstOrCreate(
-            ['title' => $request->title, 'user_id' => $request->user_id],
-            ['title' => $request->title, 'notification_message' => $request->notification_message]
-        );
+        // $template = HomeworkTemplate::firstOrCreate(
+        //     ['title' => $request->title, 'user_id' => $request->user_id],
+        //     ['title' => $request->title, 'notification_message' => $request->notification_message]
+        // );
 
         $homework = Homework::create($request->all());
 

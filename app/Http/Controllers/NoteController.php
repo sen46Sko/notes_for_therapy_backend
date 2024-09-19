@@ -9,10 +9,10 @@ use Illuminate\Support\Facades\Auth;
 
 class NoteController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('auth');
+    // }
 
     public function index(Request $request)
     {
@@ -65,6 +65,45 @@ class NoteController extends Controller
             'note' => $note->note,
             'created_at' => $note->created_at->toDateTimeString(),
         ], 201);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $note = Note::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $validatedData = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'question_id' => 'sometimes|required|exists:note_questions,id',
+            'note' => 'sometimes|required|string',
+        ]);
+
+        $note->update($validatedData);
+        $note->load('question');
+
+        return response()->json([
+            'id' => $note->id,
+            'title' => $note->title,
+            'question' => [
+                'id' => $note->question->id,
+                'title' => $note->question->title,
+            ],
+            'note' => $note->note,
+            'created_at' => $note->created_at->toDateTimeString(),
+            'updated_at' => $note->updated_at->toDateTimeString(),
+        ]);
+    }
+
+    public function destroy($id)
+    {
+        $note = Note::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $note->delete();
+
+        return response()->json(null, 204);
     }
 
     public function activity()

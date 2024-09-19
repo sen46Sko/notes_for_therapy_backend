@@ -31,6 +31,9 @@ class OtpEmail extends Mailable
     {
         $user =$this->user;
         if ($user->otp_code) {
+            // Log info
+            \Log::info('User Email: '.$user->email);
+            \Log::info('OTP Code: '.$user->otp_code);
             return $this->subject('Notes For Therapy: OTP Code')->view('emails.otpEmail',compact('user'));
         }
     }
