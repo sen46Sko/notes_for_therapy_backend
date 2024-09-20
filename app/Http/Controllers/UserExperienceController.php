@@ -9,11 +9,6 @@ use Illuminate\Validation\Rule;
 
 class UserExperienceController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-
     public function index()
     {
         $userExperience = Auth::user()->userExperience;

@@ -233,6 +233,7 @@ class ApiController extends Controller
         $isDailyAdded = Mood::isDailyAdded($user->id);
         $onboarding = Onboarding::where('user_id', $user->id)->get();
         $userExperience = UserExperience::where('user_id', $user->id)->first();
+        $userNotificationSettings = $user->userNotificationSettings();
 
         // Transform onboarding array to [key => value] object
         $onboarding = $onboarding->mapWithKeys(function ($item) {
@@ -249,6 +250,7 @@ class ApiController extends Controller
             'is_daily_added' => $isDailyAdded,
             'onboarding' => $onboarding,
             'user_experience' => $userExperience,
+            'user_notification_settings' => $userNotificationSettings,
         ]);
     }
 

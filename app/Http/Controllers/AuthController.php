@@ -329,6 +329,8 @@ class AuthController extends Controller
                 return [$item['key'] => $item['value']];
             });
 
+            $userNotificationSettings = $user->userNotificationSettings();
+
             //Token created, return with success response and jwt token
             return response()->json([
                 'success' => true,
@@ -338,7 +340,8 @@ class AuthController extends Controller
                 'promocode' => $coupon,
                 'just_signed_up' => $is_signup,
                 'onboarding' => $onboarding,
-                'user_experience' => $userExperience
+                'user_experience' => $userExperience,
+                'user_notification_settings' => $userNotificationSettings,
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Authentication failed: ' . $e->getMessage()], 401);

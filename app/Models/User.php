@@ -93,6 +93,29 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(UserExperience::class);
     }
 
+    public function userNotificationSettings()
+        {
+            $userNotificationSetting = $this->hasOne(UserNotificationSetting::class);
+            if (!$userNotificationSetting) {
+                $userNotificationSetting = new UserNotificationSetting([
+                    'user_id' => $this->id,
+                    'show_notifications' => true,
+                    'sound' => true,
+                    'preview' => true,
+                    'mail' => true,
+                    'marketing_ads' => true,
+                    'reminders' => true,
+                    'mood' => true,
+                    'notes' => true,
+                    'symptoms' => true,
+                    'goals' => true,
+                    'homework' => true,
+                ]);
+                $userNotificationSetting->save();
+            }
+            return $userNotificationSetting;
+        }
+
     public function routeNotificationForFcm() {
         return $this->fcm_token;
         // TODO: replace with actual fcm_token;

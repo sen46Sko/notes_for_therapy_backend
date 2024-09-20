@@ -24,6 +24,7 @@ use App\Http\Controllers\StripeController;
 use App\Http\Controllers\SymptomController;
 use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
+use App\Http\Controllers\UserNotificationSettingController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -154,6 +155,7 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     // Start User Experience
 
     Route::apiResource('user-experiences', UserExperienceController::class);
+    Route::resource('notification-settings', UserNotificationSettingController::class);
 
     // End User Experience
 
