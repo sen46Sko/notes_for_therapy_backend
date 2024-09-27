@@ -39,8 +39,16 @@ class User extends Authenticatable implements JWTSubject
         'user',
         'verify_status',
         'trial_start',
-            'trial_end',
-        
+        'trial_end',
+
+        // OTP
+        'otp_code',
+        'otp_expires',
+
+        // New columns
+        'gender',
+        'age',
+
     ];
 
     /**
@@ -69,32 +77,48 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
-    public function bankDetails()
-    {
-        return $this->hasOne(BankDetails::class);
-    }
-    public function follow(){
-        return $this->hasone(Follow::class,'trainer_id');
-    }
-    public function buildmyworkout(){
-        return $this->hasMany(BuildMyWorkoutModel::class);
-    }
-    public function shareworkout(){
-        return $this->hasMany(ShareWorkout::class,'client_id');
-    }
+
     public function note(){
         return $this->hasMany(Note::class);
     }
-    public function share_note(){
 
-        return $this->hasMany(ShareNote::class,'client_id');
-
-    }
-    public function parentnote(){
-        return $this->hasMany(ParentNote::class);
+    public function userSymptoms()
+    {
+        return $this->hasMany(UserSymptom::class);
     }
 
-    public function symptom(){
-        return $this->hasMany(Symptom::class);
+
+    public function userExperience()
+    {
+        return $this->hasOne(UserExperience::class);
+    }
+
+    public function userNotificationSettings()
+        {
+            $userNotificationSetting = $this->hasOne(UserNotificationSetting::class);
+            if (!$userNotificationSetting) {
+                $userNotificationSetting = new UserNotificationSetting([
+                    'user_id' => $this->id,
+                    'show_notifications' => true,
+                    'sound' => true,
+                    'preview' => true,
+                    'mail' => true,
+                    'marketing_ads' => true,
+                    'reminders' => true,
+                    'mood' => true,
+                    'notes' => true,
+                    'symptoms' => true,
+                    'goals' => true,
+                    'homework' => true,
+                ]);
+                $userNotificationSetting->save();
+            }
+            return $userNotificationSetting;
+        }
+
+    public function routeNotificationForFcm() {
+        return $this->fcm_token;
+        // TODO: replace with actual fcm_token;
+        // return 'cTwW9F5o90XKr4_XazRCAB:APA91bE--S6kalDIeCxJUeeFebwCY6Mh0mPNoJzhdSRZO0Q7NdgrokCtSo-sxw7HadLSQfBrtJRV_TDKNQowcikNDxscLWR_zay0F3kEWMdBNquX9fOQgDIdkzBG4bcpeyZCYoUQnWNd';
     }
 }

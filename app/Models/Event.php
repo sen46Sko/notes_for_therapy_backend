@@ -9,5 +9,9 @@ class Event extends Model
 {
     use HasFactory;
 
-    protected $guarded =[];
+    protected $guarded = [];
+
+    protected $casts = [
+        'priority' => 'string',
+    ];
 }

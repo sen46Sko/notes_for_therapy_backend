@@ -26,7 +26,7 @@
   height: 34px;
 }
 
-.switch input { 
+.switch input {
   opacity: 0;
   width: 0;
   height: 0;
@@ -106,15 +106,15 @@ input:checked + .slider:before {
                   </tr>
                   </thead>
                   <tbody>
-                    
+
      @foreach($users as $key => $user)
 
         <tr>
           <td>{{ ($users->currentpage()-1) * $users->perpage() + $key + 1 }}</td>
           <td>{{$user->name}}</td>
           <td>{{$user->email}}</td>
-          <td>{{$user->age}}</td>
-         
+          <td>{{$user->birthdate}}</td>
+
 
         </tr>
     @endforeach
@@ -128,7 +128,7 @@ input:checked + .slider:before {
             </div>
           </div>
         </div>
-      </div>   
+      </div>
     </section>
 
 @endsection

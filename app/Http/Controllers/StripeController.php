@@ -193,16 +193,60 @@ class StripeController extends Controller
         return $charge;
     }
 
+    private function createCustomer($email, $name)
+    {
+        $customer = null;
+        try {
+            $customer = $this->stripe->customers->create([
+                'email' => $email,
+                'name' => $name
+            ]);
+        } catch (Exception $e) {
+            $customer['error'] = $e->getMessage();
+        }
+        return $customer;
+    }
+
+    public function setupIntent(request $request)
+    {
+        $user=Auth::user();
+        $subscription = Subscription::where('user_id',$user->id)->first();
+        if (!$subscription) {
+            return response()->json([
+                'status'=>false,
+                "message" => 'No Subscription Found',
+            ]);
+        }
+        $customer_id = $subscription->customer;
+        if (!$customer_id) {
+            $customer = $this->createCustomer($user->email, $user->name);
+            if (!empty($customer['error'])) {
+                return response()->json([
+                    'status'=>false,
+                    "message" => $customer['error'],
+                ]);
+            }
+            $customer_id = $customer->id;
+            $subscription->customer = $customer_id;
+            $subscription->save();
+        }
+        $stripe = new \Stripe\StripeClient(env('STRIPE_SECRET'));
+        $intent = $this->$stripe->setupIntents->create([
+            'customer' => $customer_id,
+        ]);
+        return response()->json([
+            'status'=>True,
+            "message" => 'Setup Intent',
+            "intent"=>$intent,
+        ]);
+    }
+
     public function subscribe(request $request)
     {
 
         // return $request->all();
 
         $validator = Validator::make($request->all(), [
-            'card_number' => 'required',
-            'cvc' => 'required',
-            'exp_month'=>'required',
-            'exp_year'=>'required',
             'plan_id'=>'required',
         ]);
 

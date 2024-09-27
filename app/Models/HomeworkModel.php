@@ -10,4 +10,13 @@ class HomeworkModel extends Model
     use HasFactory;
 
     protected $guarded=[];
+
+    protected $fillable = [
+        'user_id',
+        'short_description',
+        'file',
+        'description',
+        'thoughts',
+        'notification_message'
+    ];
 }
