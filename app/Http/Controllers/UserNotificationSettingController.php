@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UserNotificationSetting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class UserNotificationSettingController extends Controller
 {
-    public function update(Request $request, NotificationSetting $setting)
+    public function update(Request $request, $id)
     {
-        $request->validate([
+        $setting = UserNotificationSetting::where('user_id', Auth::id())->findOrFail($id);
+
+        $validated = $request->validate([
             'show_notifications' => 'sometimes|boolean',
             'sound' => 'sometimes|boolean',
             'preview' => 'sometimes|boolean',
@@ -22,7 +26,7 @@ class UserNotificationSettingController extends Controller
             'homework' => 'sometimes|boolean',
         ]);
 
-        $setting->update($request->all());
+        $setting->update($validated);
         return response()->json($setting);
     }
 }

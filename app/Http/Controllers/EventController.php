@@ -168,9 +168,9 @@ class EventController extends Controller
 
     public function destroy($id)
     {
+        Event::find($id)->delete();
         Notification::where('entity_id', $id)->where('type', 'Event')->delete();
         Notification::where('entity_id', $id)->where('type', 'Event_Alert')->delete();
-        Event::find($id)->delete();
         return response()->json([
             'success' => true,
             'message' => "Event Deleted Successfully"

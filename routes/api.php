@@ -21,6 +21,7 @@ use App\Http\Controllers\HomeworkTemplateController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\StripeController;
+use App\Http\Controllers\SubscriptionWebhookController;
 use App\Http\Controllers\SymptomController;
 use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
@@ -66,6 +67,9 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::post("auth/change_password", [AuthController::class, 'changePassword']);
     Route::post("auth/change_email", [AuthController::class, 'changeEmail']);
     Route::post("auth/change_password/authorized", [AuthController::class, 'changePasswordAuthorized']);
+
+    Route::post('auth/alert', [AuthController::class, 'unsuccessfulAuthAlert']);
+
 });
 
 //    End Authentication
@@ -76,6 +80,11 @@ Route::group(['middleware' => ['jwt.verify']], function () {
 
 Route::post('webhook/stripe', [StripeControllerV2::class, 'webhook']);
 
+Route::post('payments/apple/webhook', [SubscriptionWebhookController::class, 'handleApplePayWebhook']);
+Route::post('payments/apple/webhook/sandbox', [SubscriptionWebhookController::class, 'handleApplePayWebhook']);
+
+Route::post('payments/google/webhook', [SubscriptionWebhookController::class, 'handleGooglePayWebhook']);
+Route::post('payments/google/webhook/sandbox', [SubscriptionWebhookController::class, 'handleGooglePayWebhook']);
 
 Route::group(['middleware' => ['jwt.verify']], function () {
 
@@ -154,7 +163,7 @@ Route::group(['middleware' => ['jwt.verify']], function () {
 
     // Start User Experience
 
-    Route::apiResource('user-experiences', UserExperienceController::class);
+    Route::resource('user-experiences', UserExperienceController::class);
     Route::resource('notification-settings', UserNotificationSettingController::class);
 
     // End User Experience

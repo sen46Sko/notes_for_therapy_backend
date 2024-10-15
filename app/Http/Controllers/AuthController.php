@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AuthAlertEmail;
 use App\Mail\OtpEmail;
 use App\Models\Subscription;
 use App\Models\UsedCoupon;
@@ -329,7 +330,7 @@ class AuthController extends Controller
                 return [$item['key'] => $item['value']];
             });
 
-            $userNotificationSettings = $user->userNotificationSettings();
+            $userNotificationSettings = $user->userNotificationSettings;
 
             //Token created, return with success response and jwt token
             return response()->json([
@@ -346,5 +347,25 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Authentication failed: ' . $e->getMessage()], 401);
         }
+    }
+
+    public function unsuccessfulAuthAlert(Request $request) {
+        // Send email authAlert to currently logged in user
+        $user =  Auth::user();
+        $deviceInfo = $request->device_info;
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found'
+            ], 400);
+        }
+
+        Mail::to($user->email)->send(new AuthAlertEmail($user, $deviceInfo));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Auth alert sent successfully'
+        ]);
     }
 }

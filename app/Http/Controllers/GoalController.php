@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Goal;
-// use App\Models\GoalTemplate;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -11,6 +10,37 @@ use Illuminate\Support\Facades\Validator;
 
 class GoalController extends Controller
 {
+    private function createOrUpdateNotification(Goal $goal, Request $request)
+    {
+        $notification = Notification::updateOrCreate(
+            [
+                'user_id' => auth()->id(),
+                'type' => 'Goal',
+                'status' => 'Pending',
+                'entity_id' => $goal->id,
+            ],
+            [
+                'show_at' => $goal->remind_at,
+                'status' => 'Pending',
+                'title' => 'Goal Reminder',
+                'description' => $request->notification_message ?? $goal->title,
+                'repeat' => $request->repeat,
+            ]
+        );
+
+        $goal->notification_id = $notification->id;
+    }
+
+    private function removeNotification(Goal $goal)
+    {
+        Notification::where('entity_id', $goal->id)
+            ->where('type', 'Goal')
+            ->where('status', 'Pending')
+            ->delete();
+
+        $goal->notification_id = null;
+    }
+
     public function index(Request $request)
     {
         if ($request->has('date')) {
@@ -31,17 +61,6 @@ class GoalController extends Controller
 
     public function store(Request $request)
     {
-        // $validatedData = $request->validate([
-        //     'title' => 'required|string',
-        //     'note' => 'nullable|string',
-        //     'completed_at' => 'nullable|date',
-        //     'notification_message' => 'nullable|string',
-        //     'remind_at' => 'nullable|date',
-        //     'repeat' => 'nullable|json',
-        // ], [
-        //     'title.required' => 'The title field is required.',
-        // ]);
-
         $validator = Validator::make($request->all(), [
             'title' => 'required|string',
             'note' => 'nullable|string',
@@ -58,8 +77,8 @@ class GoalController extends Controller
         }
 
         $validatedData = $validator->validated();
-
         $validatedData['user_id'] = auth()->id();
+
         if (isset($validatedData['remind_at'])) {
             $validatedData['remind_at'] = Carbon::parse($validatedData['remind_at']);
         }
@@ -67,34 +86,13 @@ class GoalController extends Controller
             $validatedData['completed_at'] = Carbon::parse($validatedData['completed_at']);
         }
 
-
-        if (isset($validatedData['remind_at'])) {
-            $notification = Notification::create([
-                'user_id' => $validatedData['user_id'],
-                'show_at' => $validatedData['remind_at'],
-                'status' => 'Pending',
-                'type' => 'Goal',
-                'title' => 'Goal Reminder',
-                'description' => $validatedData['notification_message'] ?? $validatedData['title'],
-                'repeat' => $validatedData['repeat'],
-                'entity_id' => null, // We'll update this after creating the goal
-            ]);
-
-            $validatedData['notification_id'] = $notification->id;
-        }
-
-
         $goal = Goal::create($validatedData);
 
-        if (isset($notification)) {
-            $notification->update(['entity_id' => $goal->id]);
+        if (isset($validatedData['remind_at'])) {
+            $this->createOrUpdateNotification($goal, $request);
         }
 
-
-        // GoalTemplate::firstOrCreate(
-        //     ['title' => $validatedData['title'], 'user_id' => $validatedData['user_id']],
-        //     $validatedData
-        // );
+        $goal->save();
 
         return response()->json($goal, 201);
     }
@@ -108,15 +106,6 @@ class GoalController extends Controller
     public function update(Request $request, $id)
     {
         $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
-
-        // $validatedData = $request->validate([
-        //     'title' => 'sometimes|required|string',
-        //     'note' => 'nullable|string',
-        //     'completed_at' => 'nullable|date',
-        //     'notification_message' => 'nullable|string',
-        //     'remind_at' => 'nullable|date',
-        //     'repeat' => 'nullable|json',
-        // ]);
 
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|required|string',
@@ -133,47 +122,33 @@ class GoalController extends Controller
 
         $validatedData = $validator->validated();
 
+        $oldCompletedAt = $goal->completed_at;
+        $oldRemindAt = $goal->remind_at;
+
+        $goal->fill($validatedData);
+
         if (isset($validatedData['remind_at'])) {
-            $validatedData['remind_at'] = Carbon::parse($validatedData['remind_at']);
+            $goal->remind_at = Carbon::parse($validatedData['remind_at']);
         }
         if (isset($validatedData['completed_at'])) {
-            $validatedData['completed_at'] = Carbon::parse($validatedData['completed_at']);
+            $goal->completed_at = Carbon::parse($validatedData['completed_at']);
         }
 
-        if (!$goal->notification_id && isset($validatedData['remind_at'])) {
-            // Create Notification
-            $notification = Notification::create([
-                'user_id' => auth()->id(),
-                'show_at' => $validatedData['remind_at'],
-                'status' => 'Pending',
-                'type' => 'Goal',
-                'title' => 'Goal Reminder',
-                'description' => $validatedData['notification_message'] ?? $validatedData['title'] ?? $goal->title,
-                'repeat' => $validatedData['repeat'] ?? null,
-                'entity_id' => $goal->id,
-            ]);
-
-            $validatedData['notification_id'] = $notification->id;
-        } elseif ($goal->notification_id && !isset($validatedData['remind_at'])) {
-            // Delete Notification
-            if ($goal->notification_id) {
-                Notification::where('user_id', auth()->id())
-                    ->where('id', $goal->notification_id)
-                    ->delete();
+        if ($goal->completed_at) {
+            $this->removeNotification($goal);
+        } elseif ($goal->remind_at) {
+            if (!$oldRemindAt || $oldRemindAt != $goal->remind_at) {
+                $this->createOrUpdateNotification($goal, $request);
             }
-            $validatedData['notification_id'] = null;
-        } elseif ($goal->notification_id && isset($validatedData['remind_at'])) {
-            // Update Notification
-            Notification::where('user_id', auth()->id())
-                ->where('id', $goal->notification_id)
-                ->update([
-                    'show_at' => $validatedData['remind_at'],
-                    'description' => $validatedData['notification_message'] ?? $validatedData['title'] ?? $goal->title,
-                    'repeat' => $validatedData['repeat'] ?? null,
-                ]);
+        } elseif (!$goal->remind_at && $oldRemindAt) {
+            $this->removeNotification($goal);
         }
 
-        $goal->update($validatedData);
+        if ($oldCompletedAt && !$goal->completed_at && $goal->remind_at) {
+            $this->createOrUpdateNotification($goal, $request);
+        }
+
+        $goal->save();
 
         return response()->json($goal);
     }
@@ -182,12 +157,7 @@ class GoalController extends Controller
     {
         $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
 
-        if ($goal->notification_id) {
-            Notification::where('user_id', auth()->id())
-                ->where('id', $goal->notification_id)
-                ->delete();
-        }
-
+        $this->removeNotification($goal);
         $goal->delete();
 
         return response()->json(null, 204);

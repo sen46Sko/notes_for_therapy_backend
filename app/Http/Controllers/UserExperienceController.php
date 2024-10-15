@@ -22,6 +22,7 @@ class UserExperienceController extends Controller
             'has_add_homework' => 'boolean',
             'has_add_mood' => 'boolean',
             'has_add_symptom' => 'boolean',
+            'has_add_note' => 'boolean',
         ]);
 
         $userExperience = Auth::user()->userExperience()->create($validated);
@@ -30,19 +31,24 @@ class UserExperienceController extends Controller
 
     public function show(UserExperience $userExperience)
     {
-        $this->authorize('view', $userExperience);
+        if (Auth::id() !== $userExperience->user_id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
         return response()->json($userExperience);
     }
 
     public function update(Request $request, UserExperience $userExperience)
     {
-        $this->authorize('update', $userExperience);
+        if (Auth::id() !== $userExperience->user_id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
 
         $validated = $request->validate([
             'has_add_goal' => 'boolean',
             'has_add_homework' => 'boolean',
             'has_add_mood' => 'boolean',
             'has_add_symptom' => 'boolean',
+            'has_add_note' => 'boolean',
         ]);
 
         $userExperience->update($validated);
@@ -51,7 +57,9 @@ class UserExperienceController extends Controller
 
     public function destroy(UserExperience $userExperience)
     {
-        $this->authorize('delete', $userExperience);
+        if (Auth::id() !== $userExperience->user_id) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
         $userExperience->delete();
         return response()->json(null, 204);
     }

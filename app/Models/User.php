@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
@@ -44,12 +45,15 @@ class User extends Authenticatable implements JWTSubject
         // OTP
         'otp_code',
         'otp_expires',
+        'uuid',
 
         // New columns
         'gender',
         'age',
 
     ];
+
+
 
     /**
      * The attributes that should be hidden for serialization.
@@ -69,6 +73,17 @@ class User extends Authenticatable implements JWTSubject
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            $model->uuid = Str::uuid();
+        });
+    }
+
     public function getJWTIdentifier()
     {
         return $this->getKey();
@@ -94,27 +109,29 @@ class User extends Authenticatable implements JWTSubject
     }
 
     public function userNotificationSettings()
-        {
-            $userNotificationSetting = $this->hasOne(UserNotificationSetting::class);
-            if (!$userNotificationSetting) {
-                $userNotificationSetting = new UserNotificationSetting([
-                    'user_id' => $this->id,
-                    'show_notifications' => true,
-                    'sound' => true,
-                    'preview' => true,
-                    'mail' => true,
-                    'marketing_ads' => true,
-                    'reminders' => true,
-                    'mood' => true,
-                    'notes' => true,
-                    'symptoms' => true,
-                    'goals' => true,
-                    'homework' => true,
-                ]);
-                $userNotificationSetting->save();
-            }
+    {
+        return $this->hasOne(UserNotificationSetting::class)->withDefault(function ($userNotificationSetting, $user) {
+            $defaults = [
+                'show_notifications' => true,
+                'sound' => true,
+                'preview' => true,
+                'mail' => true,
+                'marketing_ads' => true,
+                'reminders' => true,
+                'mood' => true,
+                'notes' => true,
+                'symptoms' => true,
+                'goals' => true,
+                'homework' => true,
+                'user_id' => $user->id,
+            ];
+
+            $userNotificationSetting->fill($defaults);
+            $userNotificationSetting->save();
+
             return $userNotificationSetting;
-        }
+        });
+    }
 
     public function routeNotificationForFcm() {
         return $this->fcm_token;

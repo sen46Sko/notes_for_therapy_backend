@@ -15,6 +15,7 @@ class UserExperience extends Model
         'has_add_homework',
         'has_add_mood',
         'has_add_symptom',
+        'has_add_note',
     ];
 
     protected $casts = [
@@ -22,6 +23,7 @@ class UserExperience extends Model
         'has_add_homework' => 'boolean',
         'has_add_mood' => 'boolean',
         'has_add_symptom' => 'boolean',
+        'has_add_note' => 'boolean',
     ];
 
     public function user()

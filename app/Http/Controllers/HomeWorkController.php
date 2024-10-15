@@ -18,6 +18,7 @@ class HomeworkController extends Controller
             [
                 'user_id' => auth()->id(),
                 'type' => 'Homework',
+                'status' => 'Pending',
                 'entity_id' => $homework->id,
             ],
             [
@@ -36,6 +37,7 @@ class HomeworkController extends Controller
     {
         Notification::where('entity_id', $homework->id)
             ->where('type', 'Homework')
+            ->where('status', 'Pending')
             ->delete();
 
         $homework->notification_id = null;
