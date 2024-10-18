@@ -27,8 +27,8 @@
 <body>
 
 <strong>Dear {{$user->name}},</strong>
-<p>Your OTP code is:</p>
-<b style="font-size: 36px; font-weight: 600;">{{$user->otp_code}}</b>
+<p>Your one-time password (OTP) code is:</p>
+<b style="font-size: 36px; font-weight: 600;">{{$otp_code}}</b>
 <p>This code will expire in 10 minutes.</p>
 
 <p>

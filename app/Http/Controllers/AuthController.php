@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\UsedCoupon;
 use App\Models\User;
 use App\Models\Onboarding;
+use App\Models\TwoFactorAuth;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
 use App\Services\GoogleAuthService;
@@ -67,7 +68,7 @@ class AuthController extends Controller
         $user = $this->generateOtpForUser($user);
         $user->save();
 
-        Mail::to($user->email)->send(new OtpEmail($user));
+        Mail::to($user->email)->send(new OtpEmail($user, $user->otp_code));
 
         return response()->json([
             'success' => true,
@@ -99,7 +100,7 @@ class AuthController extends Controller
         $user = $this->generateOtpForUser($user);
         $user->save();
 
-        Mail::to($newEmail)->send(new OtpEmail($user));
+        Mail::to($newEmail)->send(new OtpEmail($user, $user->otp_code));
 
         return response()->json([
             'success' => true,
@@ -331,6 +332,7 @@ class AuthController extends Controller
             });
 
             $userNotificationSettings = $user->userNotificationSettings;
+            $twoFactor = TwoFactorAuth::where('user_id', $user->id)->first();
 
             //Token created, return with success response and jwt token
             return response()->json([
@@ -343,6 +345,7 @@ class AuthController extends Controller
                 'onboarding' => $onboarding,
                 'user_experience' => $userExperience,
                 'user_notification_settings' => $userNotificationSettings,
+                'two_factor' => $twoFactor
             ]);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Authentication failed: ' . $e->getMessage()], 401);

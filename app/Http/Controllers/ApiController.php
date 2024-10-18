@@ -18,25 +18,37 @@ use App\Models\Notification;
 use App\Models\Subscription;
 use App\Models\Symptom;
 use App\Models\Tracking;
+use App\Models\TwoFactorAuth;
 use App\Models\UsedCoupon;
 use App\Models\User;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
 use App\Models\UserSymptom;
-use Auth;
+use App\Services\TwoFactorAuthService;
+use App\Services\UserService;
 use Carbon\Carbon;
 use Google\Service\Analytics\Goals;
-use Hash;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
-use JWTAuth;
 use Symfony\Component\HttpFoundation\Response;
+use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 
 class ApiController extends Controller
 {
+
+
+    protected $twoFactorAuthService;
+
+    public function __construct(TwoFactorAuthService $twoFactorAuthService)
+    {
+        $this->twoFactorAuthService = $twoFactorAuthService;
+    }
+
     private function storeImage($request)
     {
         return (new StorageHelper($request->user()->id, 'user'))->storeFile($request->file('image'));
@@ -179,35 +191,44 @@ class ApiController extends Controller
 
         $credentials = $request->only('email', 'password');
 
-        //valid credential
         $validator = Validator::make($credentials, [
             'email' => 'required|email',
             'password' => 'required|string|min:6|max:50',
-
         ]);
 
-        //Send failed response if request is not valid
         if ($validator->fails()) {
-            $message = [
-                'message' => $validator->errors()->first(),
-            ];
-            return response()->json($message, 500);
+            return response()->json(['message' => $validator->errors()->first()], 500);
         }
-        //Request is validated
-        //Crean token
+
         try {
             if (!$token = JWTAuth::attempt($credentials)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Login credentials are invalid.',
-
                 ], 400);
             }
         } catch (JWTException $e) {
-            return $credentials;
+            return response()->json(['error' => 'Could not create token'], 500);
         }
+
+        $user = Auth::user();
+
+        // Check if 2FA is enabled for the user
+        $twoFactorAuth = TwoFactorAuth::where('user_id', $user->id)->first();
+        if ($twoFactorAuth && $twoFactorAuth->is_enabled) {
+            // Generate and send 2FA code
+            app(TwoFactorAuthService::class)->generateAndSendCode($user);
+
+            return response()->json([
+                'success' => true,
+                'message' => '2FA code sent. Please verify.',
+                'requires_2fa' => true,
+                'user_id' => $user->id,
+            ]);
+        }
+
+        // If 2FA is not enabled, proceed with normal login
         if ($request->device_type != "web") {
-            $user = User::find(Auth::user()->id);
             $user->fcm_token = @$request->fcm_token;
             $user->save();
         } else {
@@ -234,6 +255,7 @@ class ApiController extends Controller
         $onboarding = Onboarding::where('user_id', $user->id)->get();
         $userExperience = UserExperience::where('user_id', $user->id)->first();
         $userNotificationSettings = $user->userNotificationSettings;
+        $twoFactor = TwoFactorAuth::where('user_id', $user->id)->first();
 
         // Transform onboarding array to [key => value] object
         $onboarding = $onboarding->mapWithKeys(function ($item) {
@@ -251,6 +273,7 @@ class ApiController extends Controller
             'onboarding' => $onboarding,
             'user_experience' => $userExperience,
             'user_notification_settings' => $userNotificationSettings,
+            'two_factor' => $twoFactor,
         ]);
     }
 
@@ -259,7 +282,7 @@ class ApiController extends Controller
         //Request is validated, do logout
         try {
 
-            $user = auth()->user();
+            $user = Auth::user();
 
             $user->fcm_token = null;
             $user->save();
@@ -408,36 +431,9 @@ class ApiController extends Controller
     {
         //$user =User::get();
         $user = JWTAuth::authenticate($request->bearerToken());
-        $subscription = Subscription::where('user_id', $user->id)->first();
-        $coupon = UserCoupon::with('coupon')->where('user_id', $user->id)->get();
-        foreach ($coupon as $coup) {
-            if (UsedCoupon::where(['user_id' => Auth::user()->id, 'coupon_id' => $coup->coupon->id])->exists()) {
-                $coup->used = true;
-            } else {
-                $coup->used = false;
-            }
-        }
-        $isDailyAdded = Mood::isDailyAdded($user->id);
-        $onboarding = Onboarding::where('user_id', $user->id)->get();
-        $userNotificationSettings = $user->userNotificationSettings;
-        $userExperience = UserExperience::where('user_id', $user->id)->first();
+        $profile = UserService::getUserProfile($user);
 
-        // Transform onboarding array to [key => value] object
-        $onboarding = $onboarding->mapWithKeys(function ($item) {
-            return [$item['key'] => $item['value']];
-        });
-
-
-        return response()->json([
-            "status" => true,
-            'user' => $user,
-            'subscription' => $subscription,
-            'promocode' => $coupon,
-            'is_daily_added' => $isDailyAdded,
-            'onboarding' => $onboarding,
-            'user_experience' => $userExperience,
-            'user_notification_settings' => $userNotificationSettings,
-        ]);
+        return response()->json($profile);
     }
 
     public function socialloginwith()
@@ -535,8 +531,6 @@ class ApiController extends Controller
     }
     public function destroy()
     {
-        Tracking::where('user_id', Auth::user()->id)->delete();
-        GoalTracking::where('user_id', Auth::user()->id)->delete();
         Goal::where('user_id', Auth::user()->id)->delete();
         Note::where('user_id', Auth::user()->id)->delete();
         UsedCoupon::where('user_id', Auth::user()->id)->delete();

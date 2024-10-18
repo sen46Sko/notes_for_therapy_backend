@@ -23,6 +23,7 @@ use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\StripeController;
 use App\Http\Controllers\SubscriptionWebhookController;
 use App\Http\Controllers\SymptomController;
+use App\Http\Controllers\TwoFactorAuthController;
 use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
 use App\Http\Controllers\UserNotificationSettingController;
@@ -36,6 +37,10 @@ use App\Http\Controllers\UserNotificationSettingController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+Route::get('', function () {
+    return response()->json(['message' => 'Welcome to Notes For Therapy API']);
+});
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -71,6 +76,16 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::post('auth/alert', [AuthController::class, 'unsuccessfulAuthAlert']);
 
 });
+
+// Two Factor Authentication
+
+Route::group(['middleware' => ['jwt.verify']], function () {
+    Route::post('2fa/init', [TwoFactorAuthController::class, 'initTwoFactor']);
+    Route::post('2fa/verify', [TwoFactorAuthController::class, 'verifyTwoFactor']);
+    Route::post('2fa/disable', [TwoFactorAuthController::class, 'disableTwoFactor']);
+});
+
+Route::post('2fa/verify-code', [TwoFactorAuthController::class, 'verifyCode']);
 
 //    End Authentication
 
