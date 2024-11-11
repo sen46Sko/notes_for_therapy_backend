@@ -13,7 +13,11 @@ use NotificationChannels\Fcm\Resources\ApnsFcmOptions;
 
 class DefaultNotification extends Notification
 {
-    // Constructor
+    private $title;
+    private $body;
+    private $image;
+    private $metadata;
+
     public function __construct($title, $body, $image = null, $metadata = null)
     {
         $this->title = $title;
@@ -29,20 +33,24 @@ class DefaultNotification extends Notification
 
     public function toFcm($notifiable)
     {
+        $sound = $this->metadata['sound'] ?? 'default';
+        $alert = $this->metadata['alert'] ?? [
+            'title' => $this->title,
+            'body' => $this->body,
+        ];
+
         return FcmMessage::create()
-            ->setData(
-                $this->metadata ?? []
-            )
+            ->setData($this->metadata ?? [])
             ->setNotification(\NotificationChannels\Fcm\Resources\Notification::create()
-                ->setTitle($this->title)
-                ->setBody($this->body)
+                ->setTitle($alert['title'])
+                ->setBody($alert['body'])
                 ->setImage($this->image))
             ->setAndroid(
                 AndroidConfig::create()
                     ->setFcmOptions(AndroidFcmOptions::create()->setAnalyticsLabel('analytics'))
                     ->setNotification(AndroidNotification::create()
                         ->setColor('#0A0A0A')
-                        ->setSound('default') // Set default sound for Android
+                        ->setSound($sound)
                     )
             )
             ->setApns(
@@ -50,20 +58,15 @@ class DefaultNotification extends Notification
                     ->setFcmOptions(ApnsFcmOptions::create()->setAnalyticsLabel('analytics_ios'))
                     ->setPayload([
                         'aps' => [
-                            'alert' => [
-                                'title' => $this->title,
-                                'body' => $this->body,
-                            ],
-                            'sound' => 'default', // Set default sound for iOS
+                            'alert' => $alert,
+                            'sound' => $sound,
                         ]
                     ])
             );
     }
 
-    // optional method when using kreait/laravel-firebase:^3.0, this method can be omitted, defaults to the default project
     public function fcmProject($notifiable, $message)
     {
-        // $message is what is returned by `toFcm`
-        return 'app'; // name of the firebase project to use
+        return 'app';
     }
 }

@@ -7,6 +7,7 @@ use App\Models\HomeworkTemplate;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class HomeworkController extends Controller
 {
@@ -180,12 +181,18 @@ class HomeworkController extends Controller
         $oldCompletedAt = $homework->completed_at;
         $oldRemindAt = $homework->remind_at;
 
-        $homework->fill($request->all());
-
         // Parse dates
-        $homework->deadline = $request->has('deadline') ? Carbon::parse($request->deadline) : $homework->deadline;
-        $homework->completed_at = $request->has('completed_at') ? Carbon::parse($request->completed_at) : $homework->completed_at;
-        $homework->remind_at = $request->has('remind_at') ? Carbon::parse($request->remind_at) : $homework->remind_at;
+        if ($request['deadline']) {
+            $request['deadline'] = Carbon::parse($request['deadline']);
+        }
+        if ($request['completed_at']) {
+            $request['completed_at'] = Carbon::parse($request['completed_at']);
+        }
+        if ($request['remind_at']) {
+            $request['remind_at'] = Carbon::parse($request['remind_at']);
+        }
+
+        $homework->fill($request->all());
 
         // Handle notification based on completed_at and remind_at
         if ($homework->completed_at) {

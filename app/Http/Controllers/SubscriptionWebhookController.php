@@ -90,25 +90,29 @@ class SubscriptionWebhookController extends Controller
     }
 
     private function processAppleSubscriptionUpdate($decodedPayload)
-    {
-        $notificationType = $decodedPayload['notificationType'] ?? null;
-        $subtype = $decodedPayload['subtype'] ?? null;
-        $data = $decodedPayload['data'] ?? null;
+{
+    $notificationType = $decodedPayload['notificationType'] ?? null;
+    $subtype = $decodedPayload['subtype'] ?? null;
+    $data = $decodedPayload['data'] ?? null;
 
-        if (!$data || !isset($data['decodedTransactionInfo'])) {
-            return response()->json(['error' => 'Missing required information'], 400);
-        }
-
-        $transactionInfo = $data['decodedTransactionInfo'];
-        $renewalInfo = $data['decodedRenewalInfo'] ?? null;
-
-        $userUuid = $transactionInfo['appAccountToken'] ?? null;
-        $subscriptionId = $transactionInfo['originalTransactionId'] ?? null;
-        $status = $this->mapAppleStatusToInternal($notificationType, $subtype);
-        $expirationDate = $transactionInfo['expiresDate'] ?? null;
-
-        return $this->updateSubscription($userUuid, $subscriptionId, $status, $expirationDate, 'apple_pay');
+    if (!$data || !isset($data['decodedTransactionInfo'])) {
+        return response()->json(['error' => 'Missing required information'], 400);
     }
+
+    $transactionInfo = $data['decodedTransactionInfo'];
+    $renewalInfo = $data['decodedRenewalInfo'] ?? null;
+    $userUuid = $transactionInfo['appAccountToken'] ?? null;
+    $subscriptionId = $transactionInfo['originalTransactionId'] ?? null;
+
+    // Get current subscription status before updating
+    $currentStatus = $this->getCurrentSubscriptionStatus($userUuid, $subscriptionId);
+
+    // Only update status if the notification type requires a status change
+    $newStatus = $this->mapAppleStatusToInternal($notificationType, $subtype, $currentStatus);
+    $expirationDate = $transactionInfo['expiresDate'] ?? null;
+
+    return $this->updateSubscription($userUuid, $subscriptionId, $newStatus, $expirationDate, 'apple_pay');
+}
 
     private function processGoogleSubscriptionUpdate($decodedData)
     {
@@ -155,21 +159,51 @@ class SubscriptionWebhookController extends Controller
         return response()->json(['message' => 'Subscription updated successfully']);
     }
 
-    private function mapAppleStatusToInternal($notificationType, $subtype)
+    private function mapAppleStatusToInternal($notificationType, $subtype, $currentStatus)
     {
-        switch ($notificationType) {
-            case 'SUBSCRIBED':
-            case 'DID_RENEW':
-                return 'active';
-            case 'DID_FAIL_TO_RENEW':
-                return 'active';
-            case 'EXPIRED':
-                return 'expired';
-            case 'REFUND':
-                return 'refunded';
-            default:
-                return 'inactive';
+        // Events that set status to 'active'
+        $activeEvents = [
+            'SUBSCRIBED',                                          // Initial subscription or resubscribe
+            'DID_RENEW',                                           // Successful renewal
+            'OFFER_REDEEMED',                                      // Offer redemption
+            'DID_CHANGE_RENEWAL_STATUS' => ['AUTO_RENEW_ENABLED']  // Re-enable auto-renewal
+        ];
+
+        // Events that set status to 'inactive'
+        $inactiveEvents = [
+            'EXPIRED' => [
+                'VOLUNTARY',             // User cancelled
+                'BILLING_RETRY',         // Failed to renew after retry period
+                'PRICE_INCREASE',        // User didn't consent to price increase
+                'PRODUCT_NOT_FOR_SALE'   // Product no longer available
+            ],
+            'GRACE_PERIOD_EXPIRED',     // Grace period ended without renewal
+            'REFUND',                   // Refund processed
+            'REVOKE'                    // Family sharing revoked
+        ];
+
+        // Check for events that set status to 'active'
+        if (in_array($notificationType, $activeEvents) ||
+            (isset($activeEvents[$notificationType]) &&
+            in_array($subtype, $activeEvents[$notificationType]))) {
+            return 'active';
         }
+
+        // Check for events that set status to 'inactive'
+        if (in_array($notificationType, $inactiveEvents) ||
+            (isset($inactiveEvents[$notificationType]) &&
+            in_array($subtype, $inactiveEvents[$notificationType]))) {
+            return 'inactive';
+        }
+
+        // Special case for DID_FAIL_TO_RENEW
+        if ($notificationType === 'DID_FAIL_TO_RENEW') {
+            // If in grace period, keep active, otherwise set to inactive
+            return ($subtype === 'GRACE_PERIOD') ? 'active' : 'inactive';
+        }
+
+        // For all other notification types, maintain current status
+        return $currentStatus;
     }
 
     private function mapGoogleStatusToInternal($notificationType)
@@ -194,6 +228,13 @@ class SubscriptionWebhookController extends Controller
             default:
                 return 'inactive';
         }
+    }
+
+    private function getCurrentSubscriptionStatus($userUuid, $subscriptionId)
+    {
+        // Implement this method to fetch the current subscription status from your database
+        // Return the current status or a default value if not found
+        return 'inactive'; // Default implementation - replace with actual database query
     }
 
     private function getUserIdFromPurchaseToken($purchaseToken)

@@ -105,9 +105,7 @@ class AnalyticsController extends Controller
             ->get();
 
         $notes = Note::where('user_id', $userId)
-            ->where(function ($q) use ($query) {
-                $q->where('title', 'like', "%{$query}%");
-            })
+            ->where('title', 'like', "%{$query}%")
             ->get();
 
         return response()->json([

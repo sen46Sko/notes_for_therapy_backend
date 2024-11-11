@@ -25,6 +25,10 @@ class Notification extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function userNotificationSettings() {
+        return UserNotificationSetting::where('user_id', $this->user_id)->first();
+    }
+
     public function routeNotificationForFcm() {
         return $this->user->fcm_token;
         // TODO: replace with actual fcm_token;

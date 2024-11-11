@@ -6,6 +6,7 @@ use App\Models\Note;
 use App\Models\NoteQuestion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class NoteController extends Controller
 {
@@ -18,13 +19,17 @@ class NoteController extends Controller
     {
         $query = $request->query('query');
 
-        $notes = Note::with('question')
-            ->where('user_id', Auth::id())
-            ->when($query, function ($q) use ($query) {
-                return $q->where('title', 'like', "%{$query}%")
+        $q = Note::with('question')
+            ->where('user_id', Auth::id());
+
+        if ($query != null && $query != '') {
+            $q = $q->where(function ($q) use ($query) {
+                    return $q->where('title', 'like', "%{$query}%")
                     ->orWhere('note', 'like', "%{$query}%");
-            })
-            ->orderBy('created_at', 'desc')
+                });
+        }
+
+        $notes = $q->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($note) {
                 return [
@@ -38,6 +43,17 @@ class NoteController extends Controller
                     'created_at' => $note->created_at->toDateTimeString(),
                 ];
             });
+
+        $sql = Note::with('question')
+            ->where('user_id', Auth::id())
+            ->where(function ($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                    ->orWhere('note', 'like', "%{$query}%");
+            })
+            ->orderBy('created_at', 'desc')
+            ->toSql();
+
+        Log::info($sql);
 
         return response()->json($notes);
     }

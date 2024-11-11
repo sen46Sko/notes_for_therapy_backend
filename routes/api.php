@@ -237,6 +237,7 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::get('/mood-monthly-report', [MoodController::class, 'getMonthlyReport']);
 
     Route::apiResource('mood-relations', MoodRelationController::class);
+    Route::get('mood-relations/common', [MoodRelationController::class, 'common']);
     Route::apiResource('mood-feelings', MoodFeelingController::class);
 
     // End Mood

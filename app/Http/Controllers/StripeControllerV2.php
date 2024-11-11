@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Stripe;
-use Auth;
 use App\Models\User;
 use App\Models\Subscription;
+use Illuminate\Support\Facades\Auth;
 
 class StripeControllerV2 extends Controller
 {
@@ -16,6 +16,9 @@ class StripeControllerV2 extends Controller
    *
    * @return \Illuminate\Http\Response
    */
+
+  private \Stripe\StripeClient $stripe;
+
   public function __construct()
   {
     Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
