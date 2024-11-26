@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Goal;
 use App\Models\Homework;
 use App\Models\Note;
+use App\Models\UserSymptom;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -17,6 +18,7 @@ class AnalyticsController extends Controller
         $monthStart = $now->copy()->startOfMonth();
         $yearStart = $now->copy()->startOfYear();
 
+        $user = auth()->user();
         $userId = auth()->id();
 
         $weekGoals = Goal::where('user_id', $userId)
@@ -27,6 +29,10 @@ class AnalyticsController extends Controller
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', $weekStart)
             ->get();
+        $weekSymptoms = UserSymptom::where('user_id', $userId)
+            ->with('symptom')
+            ->where('created_at', '>=', $weekStart)
+            ->get();
 
         $monthGoals = Goal::where('user_id', $userId)
             ->whereNotNull('completed_at')
@@ -35,6 +41,10 @@ class AnalyticsController extends Controller
         $monthHomeworks = Homework::where('user_id', $userId)
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', $monthStart)
+            ->get();
+        $monthSymptoms = UserSymptom::where('user_id', $userId)
+            ->with('symptom')
+            ->where('created_at', '>=', $monthStart)
             ->get();
 
         $yearGoals = Goal::where('user_id', $userId)
@@ -45,19 +55,26 @@ class AnalyticsController extends Controller
             ->whereNotNull('completed_at')
             ->where('completed_at', '>=', $yearStart)
             ->get();
+        $yearSymptoms = UserSymptom::where('user_id', $userId)
+            ->with('symptom')
+            ->where('created_at', '>=', $yearStart)
+            ->get();
 
         return response()->json([
             'week' => [
                 'goals' => $weekGoals,
                 'homeworks' => $weekHomeworks,
+                'symptoms' => $weekSymptoms,
             ],
             'month' => [
                 'goals' => $monthGoals,
                 'homeworks' => $monthHomeworks,
+                'symptoms' => $monthSymptoms,
             ],
             'year' => [
                 'goals' => $yearGoals,
                 'homeworks' => $yearHomeworks,
+                'symptoms' => $yearSymptoms,
             ],
             'user_id' => $userId,
         ]);

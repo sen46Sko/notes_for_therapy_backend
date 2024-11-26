@@ -9,7 +9,7 @@ class Symptom extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'color'];
+    protected $fillable = ['name', 'color', 'user_id'];
 
     public function userSymptoms()
     {

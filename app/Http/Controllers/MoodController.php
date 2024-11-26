@@ -3,21 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\Mood;
-use App\Models\MoodFeeling;
 use App\Models\MoodRelation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class MoodController extends Controller
 {
+    private const MOOD_RANGES = [
+        'Very Sad' => ['min' => 0, 'max' => 10, 'color' => '#FF6B6B'],
+        'Sad' => ['min' => 11, 'max' => 20, 'color' => '#FF8E72'],
+        'Worried' => ['min' => 21, 'max' => 30, 'color' => '#FFA07A'],
+        'Frustrated' => ['min' => 31, 'max' => 44, 'color' => '#FFB347'],
+        'Neutral' => ['min' => 45, 'max' => 55, 'color' => '#F9DC5C'],
+        'Pleased' => ['min' => 56, 'max' => 65, 'color' => '#98FB98'],
+        'Happy' => ['min' => 66, 'max' => 85, 'color' => '#4BB543'],
+        'Excited' => ['min' => 86, 'max' => 100, 'color' => '#228B22']
+    ];
+
     public function store(Request $request)
     {
         $validated = $request->validate([
             'value' => 'required|integer|between:0,100',
             'type' => 'required|in:momentary,daily',
             'mood_relation_id' => 'required|exists:mood_relations,id',
-            'mood_feelings' => 'array',
-            'mood_feelings.*' => 'exists:mood_feelings,id',
             'note' => 'nullable|string',
         ]);
 
@@ -29,21 +37,17 @@ class MoodController extends Controller
             'user_id' => auth()->id(),
         ]);
 
-        if (!empty($validated['mood_feelings'])) {
-            $mood->moodFeelings()->attach($validated['mood_feelings']);
-        }
-
-        return response()->json($mood->load('moodRelation', 'moodFeelings'), 201);
+        return response()->json($mood->load('moodRelation'), 201);
     }
 
     public function destroy($id)
     {
         try {
-            $moodFeeling = Mood::findOrFail($id);
-            if ($moodFeeling->user_id !== auth()->id()) {
+            $mood = Mood::findOrFail($id);
+            if ($mood->user_id !== auth()->id()) {
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
-            $moodFeeling->delete();
+            $mood->delete();
             return response()->json(null, 204);
         } catch(\Exception $e){
             return response()->json(['error' => 'Mood not found'], 404);
@@ -53,11 +57,10 @@ class MoodController extends Controller
     public function getMoodByDate(Request $request)
     {
         $date = Carbon::createFromFormat('d-m-Y', $request->query('date'))->startOfDay();
-        // Get all moods in the current day
         $moods = Mood::where('user_id', auth()->id())
             ->where('created_at', '>=', $date)
             ->where('created_at', '<', $date->copy()->addDay())
-            ->with(['moodRelation', 'moodFeelings'])
+            ->with(['moodRelation'])
             ->get();
 
         $momentaryMoods = $moods->where('type', 'momentary')->values();
@@ -71,28 +74,62 @@ class MoodController extends Controller
     public function getMoodInfo()
     {
         $relations = MoodRelation::all();
-        $feelings = MoodFeeling::all();
 
         return response()->json([
             'relations' => $relations,
-            'feelings' => $feelings,
         ]);
+    }
+
+    private function calculateMoodCounts($moods)
+    {
+        $moodCounts = [];
+        $totalMoods = count($moods);
+
+        if ($totalMoods === 0) {
+            return [];
+        }
+
+        // Initialize counters for each mood range
+        foreach (self::MOOD_RANGES as $moodName => $range) {
+            $moodCounts[$moodName] = 0;
+        }
+
+        // Count moods
+        foreach ($moods as $mood) {
+            foreach (self::MOOD_RANGES as $moodName => $range) {
+                if ($mood->value >= $range['min'] && $mood->value <= $range['max']) {
+                    $moodCounts[$moodName]++;
+                    break;
+                }
+            }
+        }
+
+        // Convert counts to percentages and format response
+        $result = [];
+        foreach (self::MOOD_RANGES as $moodName => $range) {
+            if ($moodCounts[$moodName] > 0) {
+                $result[] = [
+                    'name' => $moodName,
+                    'count' => number_format(($moodCounts[$moodName] / $totalMoods * 100), 0) . '%',
+                    'color' => $range['color']
+                ];
+            }
+        }
+
+        return $result;
     }
 
     public function getWeeklyReport()
     {
         $userId = auth()->id();
-        // Start from Monday
         $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY);
         $endOfWeek = Carbon::now()->endOfWeek(Carbon::SUNDAY);
 
         $moods = Mood::where('user_id', $userId)
             ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
-            ->with('moodFeelings')
             ->get();
 
         $byDays = array_fill(0, 7, []);
-        $weekFeelingsCounts = [];
         $currentWeekPositiveCount = 0;
         $currentWeekNegativeCount = 0;
 
@@ -100,8 +137,6 @@ class MoodController extends Controller
             $dayIndex = (Carbon::parse($mood->created_at)->dayOfWeek + 6) % 7;
             $byDays[$dayIndex][] = $mood->value;
 
-            // Append mood->mood_feelings to weekFeelingsCounts, like using array_merge
-            $weekFeelingsCounts = array_merge($weekFeelingsCounts, $mood->moodFeelings->toArray());
             if ($mood->value > 55) {
                 $currentWeekPositiveCount++;
             } elseif ($mood->value < 45) {
@@ -109,15 +144,7 @@ class MoodController extends Controller
             }
         }
 
-        $totalFeelings = count($weekFeelingsCounts);
-        $weekFeelingsCounts = collect($weekFeelingsCounts)->groupBy('id')->map(function($group) use ($totalFeelings) {
-            $first = $group->first();
-            return [
-                'name' => $first['name'],
-                'color' => $first['color'],
-                'count' => number_format(($group->count() / $totalFeelings * 100), 0) . '%',
-            ];
-        })->values();
+        $weekMoodCounts = $this->calculateMoodCounts($moods);
 
         $currentWeekTotalCount = $currentWeekPositiveCount + $currentWeekNegativeCount;
 
@@ -135,6 +162,7 @@ class MoodController extends Controller
                 $previousWeekNegativeCount++;
             }
         }
+
         $previousWeekTotalCount = $previousWeekPositiveCount + $previousWeekNegativeCount;
 
         $previousWeekPositivePercentage = $previousWeekTotalCount > 0 ? ($previousWeekPositiveCount / $previousWeekTotalCount) * 100 : 0;
@@ -143,62 +171,49 @@ class MoodController extends Controller
         $currentWeekPositivePercentage = $currentWeekTotalCount > 0 ? ($currentWeekPositiveCount / $currentWeekTotalCount) * 100 : 0;
         $currentWeekNegativePercentage = $currentWeekTotalCount > 0 ? ($currentWeekNegativeCount / $currentWeekTotalCount) * 100 : 0;
 
-        $positiveDiff = $currentWeekPositivePercentage - $previousWeekPositivePercentage;
-        $negativeDiff = $currentWeekNegativePercentage - $previousWeekNegativePercentage;
-
-        // Round to 0 decimal places
-        $positiveDiff = round($positiveDiff, 0);
-        $negativeDiff = round($negativeDiff, 0);
+        $positiveDiff = round($currentWeekPositivePercentage - $previousWeekPositivePercentage, 0);
+        $negativeDiff = round($currentWeekNegativePercentage - $previousWeekNegativePercentage, 0);
 
         return response()->json([
             'byDays' => $byDays,
-            'weekFeelingsCounts' => $weekFeelingsCounts,
+            'weekMoodCounts' => $weekMoodCounts,
             'positiveDiff' => $positiveDiff,
             'negativeDiff' => $negativeDiff,
         ]);
     }
 
-    public function getMonthlyReport(Request $request) {
+    public function getMonthlyReport(Request $request)
+    {
         $userId = auth()->id();
 
-        // Get the date from the request or default to the current month
         $dateParam = $request->query('date');
         if ($dateParam) {
-            // Parse the provided date parameter
             $startOfMonth = Carbon::createFromFormat('m-Y', $dateParam)->startOfMonth();
         } else {
-            // Default to the current month
             $startOfMonth = Carbon::now()->startOfMonth();
         }
         $endOfMonth = $startOfMonth->copy()->endOfMonth();
 
-        // Calculate the start and end of the calendar month
         $startOfCalendarMonth = $startOfMonth->copy()->startOfWeek(Carbon::MONDAY);
         $endOfCalendarMonth = $endOfMonth->copy()->endOfWeek(Carbon::SUNDAY);
 
-        // Fetch moods for the specified month
         $moods = Mood::where('user_id', $userId)
             ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
-            ->with('moodFeelings')
             ->get();
 
         $calendarMoods = Mood::where('user_id', $userId)
             ->whereBetween('created_at', [$startOfCalendarMonth, $endOfCalendarMonth])
             ->get();
 
-        // Initialize variables
         $daysInMonth = $endOfMonth->day;
         $byDays = array_fill(0, $daysInMonth, []);
-        $monthFeelingsCounts = [];
-        $calendarByDays = [];
+        $byCalendarDays = [];
         $currentMonthPositiveCount = 0;
         $currentMonthNegativeCount = 0;
 
-        // Process moods for the current month
         foreach ($moods as $mood) {
             $dayIndex = Carbon::parse($mood->created_at)->day - 1;
             $byDays[$dayIndex][] = $mood->value;
-            $monthFeelingsCounts = array_merge($monthFeelingsCounts, $mood->moodFeelings->toArray());
 
             if ($mood->value > 55) {
                 $currentMonthPositiveCount++;
@@ -206,15 +221,8 @@ class MoodController extends Controller
                 $currentMonthNegativeCount++;
             }
         }
-        $totalFeelings = count($monthFeelingsCounts);
-        $monthFeelingsCounts = collect($monthFeelingsCounts)->groupBy('id')->map(function($group) use ($totalFeelings) {
-            $first = $group->first();
-            return [
-                'name' => $first['name'],
-                'color' => $first['color'],
-                'count' => number_format(($group->count() / $totalFeelings * 100), 0) . '%',
-            ];
-        })->values();
+
+        $monthMoodCounts = $this->calculateMoodCounts($moods);
 
         for ($date = $startOfCalendarMonth->copy(); $date->lte($endOfCalendarMonth); $date->addDay()) {
             $dateString = $date->format('d-m-Y');
@@ -228,7 +236,6 @@ class MoodController extends Controller
 
         $currentMonthTotalCount = $currentMonthPositiveCount + $currentMonthNegativeCount;
 
-        // Fetch moods for the previous month
         $previousMonthStart = $startOfMonth->copy()->subMonth()->startOfMonth();
         $previousMonthEnd = $startOfMonth->copy()->subMonth()->endOfMonth();
 
@@ -239,7 +246,6 @@ class MoodController extends Controller
         $previousMonthPositiveCount = 0;
         $previousMonthNegativeCount = 0;
 
-        // Process moods for the previous month
         foreach ($previousMonthMoods as $mood) {
             if ($mood->value > 55) {
                 $previousMonthPositiveCount++;
@@ -250,28 +256,21 @@ class MoodController extends Controller
 
         $previousMonthTotalCount = $previousMonthPositiveCount + $previousMonthNegativeCount;
 
-        // Calculate percentages
         $previousMonthPositivePercentage = $previousMonthTotalCount > 0 ? ($previousMonthPositiveCount / $previousMonthTotalCount) * 100 : 0;
         $previousMonthNegativePercentage = $previousMonthTotalCount > 0 ? ($previousMonthNegativeCount / $previousMonthTotalCount) * 100 : 0;
 
         $currentMonthPositivePercentage = $currentMonthTotalCount > 0 ? ($currentMonthPositiveCount / $currentMonthTotalCount) * 100 : 0;
         $currentMonthNegativePercentage = $currentMonthTotalCount > 0 ? ($currentMonthNegativeCount / $currentMonthTotalCount) * 100 : 0;
 
-        // Calculate differences
-        $positiveDiff = $currentMonthPositivePercentage - $previousMonthPositivePercentage;
-        $negativeDiff = $currentMonthNegativePercentage - $previousMonthNegativePercentage;
-
-        // Round to 0 decimal places
-        $positiveDiff = round($positiveDiff, 0);
-        $negativeDiff = round($negativeDiff, 0);
+        $positiveDiff = round($currentMonthPositivePercentage - $previousMonthPositivePercentage, 0);
+        $negativeDiff = round($currentMonthNegativePercentage - $previousMonthNegativePercentage, 0);
 
         return response()->json([
             'byDays' => $byDays,
             'byCalendarDays' => $byCalendarDays,
-            'monthFeelingsCounts' => $monthFeelingsCounts,
+            'monthMoodCounts' => $monthMoodCounts,
             'positiveDiff' => $positiveDiff,
             'negativeDiff' => $negativeDiff,
         ]);
     }
-
 }

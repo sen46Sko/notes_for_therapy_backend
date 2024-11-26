@@ -2,14 +2,12 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MoodController;
-use App\Http\Controllers\MoodFeelingController;
 use App\Http\Controllers\MoodRelationController;
 use App\Http\Controllers\StripeControllerV2;
 use App\Http\Controllers\WeeklyWordsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
-use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NoteQuestionController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\GoalController;
@@ -18,6 +16,7 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\HomeworkTemplateController;
+use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProblemController;
 use App\Http\Controllers\StripeController;
@@ -220,7 +219,9 @@ Route::group(['middleware' => ['jwt.verify']], function () {
 
 
     // Start Symptom
-    Route::get('/symptoms', [SymptomController::class, 'index']);
+    Route::apiResource('symptoms', SymptomController::class);
+    Route::get('symptoms/common', [SymptomController::class, 'common']);
+
     Route::get('/user-symptoms', [UserSymptomController::class, 'index']);
     Route::post('/user-symptoms', [UserSymptomController::class, 'store']);
     // End UserSymptom
@@ -238,7 +239,6 @@ Route::group(['middleware' => ['jwt.verify']], function () {
 
     Route::apiResource('mood-relations', MoodRelationController::class);
     Route::get('mood-relations/common', [MoodRelationController::class, 'common']);
-    Route::apiResource('mood-feelings', MoodFeelingController::class);
 
     // End Mood
 
