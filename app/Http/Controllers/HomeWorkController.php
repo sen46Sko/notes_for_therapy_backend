@@ -68,7 +68,6 @@ class HomeworkController extends Controller
     {
         $user_id = auth()->id();
         $today = now();
-        $threeDaysFromNow = $today->copy()->addDays(3);
 
         // Count of incomplete homeworks
         $incompleteCount = Homework::where('user_id', $user_id)
@@ -77,10 +76,6 @@ class HomeworkController extends Controller
 
         // Overdue or approaching deadline homeworks
         $urgentHomeworks = Homework::where('user_id', $user_id)
-            ->where(function ($query) use ($today, $threeDaysFromNow) {
-                $query->where('deadline', '<=', $today)
-                    ->orWhereBetween('deadline', [$today, $threeDaysFromNow]);
-            })
             ->whereNull('completed_at')
             ->orderBy('deadline')
             ->take(5)

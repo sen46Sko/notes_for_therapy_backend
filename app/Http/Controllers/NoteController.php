@@ -62,7 +62,7 @@ class NoteController extends Controller
     {
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
-            'question_id' => 'required|exists:note_questions,id',
+            'question_id' => 'sometimes|exists:note_questions,id',
             'note' => 'required|string',
         ]);
 

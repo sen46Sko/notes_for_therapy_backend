@@ -12,7 +12,7 @@ use Firebase\JWT\Key;
 
 class SubscriptionWebhookController extends Controller
 {
-    public function handleApplePayWebhook(Request $request)
+     public function handleApplePayWebhook(Request $request)
     {
         $signedPayload = $request->input('signedPayload');
         if (!$signedPayload) {
@@ -90,29 +90,52 @@ class SubscriptionWebhookController extends Controller
     }
 
     private function processAppleSubscriptionUpdate($decodedPayload)
-{
-    $notificationType = $decodedPayload['notificationType'] ?? null;
-    $subtype = $decodedPayload['subtype'] ?? null;
-    $data = $decodedPayload['data'] ?? null;
+    {
+        $notificationType = $decodedPayload['notificationType'] ?? null;
+        $subtype = $decodedPayload['subtype'] ?? null;
+        $data = $decodedPayload['data'] ?? null;
 
-    if (!$data || !isset($data['decodedTransactionInfo'])) {
-        return response()->json(['error' => 'Missing required information'], 400);
+        if (!$data || !isset($data['decodedTransactionInfo'])) {
+            return response()->json(['error' => 'Missing required information'], 400);
+        }
+
+        $transactionInfo = $data['decodedTransactionInfo'];
+        $renewalInfo = $data['decodedRenewalInfo'] ?? null;
+        $userUuid = $transactionInfo['appAccountToken'] ?? null;
+        $subscriptionId = $transactionInfo['originalTransactionId'] ?? null;
+
+        // Get current subscription status before updating
+        $currentStatus = $this->getCurrentSubscriptionStatus($userUuid, $subscriptionId);
+
+        // Only update status if the notification type requires a status change
+        $newStatus = $this->mapAppleStatusToInternal($notificationType, $subtype, $currentStatus);
+        $expirationDate = $transactionInfo['expiresDate'] ?? null;
+
+        // Extract trial period information
+        $trialStart = null;
+        $trialEnd = null;
+
+        if (isset($transactionInfo['isTrialPeriod']) && $transactionInfo['isTrialPeriod']) {
+            $trialStart = isset($transactionInfo['purchaseDate'])
+                ? Carbon::createFromTimestamp($transactionInfo['purchaseDate'] / 1000)
+                : Carbon::now();
+
+            $trialEnd = isset($transactionInfo['expiresDate'])
+                ? Carbon::createFromTimestamp($transactionInfo['expiresDate'] / 1000)
+                : null;
+        }
+
+        return $this->updateSubscription(
+            $userUuid,
+            $subscriptionId,
+            $newStatus,
+            $expirationDate,
+            'apple_pay',
+            null,
+            $trialStart,
+            $trialEnd
+        );
     }
-
-    $transactionInfo = $data['decodedTransactionInfo'];
-    $renewalInfo = $data['decodedRenewalInfo'] ?? null;
-    $userUuid = $transactionInfo['appAccountToken'] ?? null;
-    $subscriptionId = $transactionInfo['originalTransactionId'] ?? null;
-
-    // Get current subscription status before updating
-    $currentStatus = $this->getCurrentSubscriptionStatus($userUuid, $subscriptionId);
-
-    // Only update status if the notification type requires a status change
-    $newStatus = $this->mapAppleStatusToInternal($notificationType, $subtype, $currentStatus);
-    $expirationDate = $transactionInfo['expiresDate'] ?? null;
-
-    return $this->updateSubscription($userUuid, $subscriptionId, $newStatus, $expirationDate, 'apple_pay');
-}
 
     private function processGoogleSubscriptionUpdate($decodedData)
     {
@@ -128,11 +151,43 @@ class SubscriptionWebhookController extends Controller
         $status = $this->mapGoogleStatusToInternal($notificationType);
         $expirationDate = $decodedData['eventTimeMillis'] ?? null;
 
-        return $this->updateSubscription($userUuid, $subscriptionId, $status, $expirationDate, 'google_pay', $purchaseToken);
+        // Extract trial period information from Google Pay notification
+        $trialStart = null;
+        $trialEnd = null;
+
+        if (isset($decodedData['subscriptionNotification']['isTrial']) &&
+            $decodedData['subscriptionNotification']['isTrial']) {
+            $trialStart = isset($decodedData['subscriptionNotification']['startTimeMillis'])
+                ? Carbon::createFromTimestamp($decodedData['subscriptionNotification']['startTimeMillis'] / 1000)
+                : Carbon::now();
+
+            $trialEnd = isset($decodedData['subscriptionNotification']['expiryTimeMillis'])
+                ? Carbon::createFromTimestamp($decodedData['subscriptionNotification']['expiryTimeMillis'] / 1000)
+                : null;
+        }
+
+        return $this->updateSubscription(
+            $userUuid,
+            $subscriptionId,
+            $status,
+            $expirationDate,
+            'google_pay',
+            $purchaseToken,
+            $trialStart,
+            $trialEnd
+        );
     }
 
-    private function updateSubscription($userUuid, $subscriptionId, $status, $expirationDate, $provider, $purchaseToken = null)
-    {
+    private function updateSubscription(
+        $userUuid,
+        $subscriptionId,
+        $status,
+        $expirationDate,
+        $provider,
+        $purchaseToken = null,
+        $trialStart = null,
+        $trialEnd = null
+    ) {
         if (!$userUuid || !$subscriptionId || !$status) {
             return response()->json(['error' => 'Missing required information'], 400);
         }
@@ -142,22 +197,29 @@ class SubscriptionWebhookController extends Controller
             return response()->json(['error' => 'User not found'], 404);
         }
 
-        // $subscription = Subscription::updateOrCreate(
-        //     ['user_id' => $user->id, 'provider' => $provider, 'provider_subscription_id' => $subscriptionId],
-        //     [
-        //         'status' => $status,
-        //         'expiration_date' => $expirationDate ? Carbon::createFromTimestamp($expirationDate / 1000) : null,
-        //         'purchase_token' => $purchaseToken,
-        //     ]
-        // );
-
+        // Update user subscription status and trial information
         $user->subscription_status = $status;
+
+        // Only update trial dates if they are provided and the user is starting a new trial
+        if ($trialStart && $trialEnd && ($status === 'active' || $status === 'trial')) {
+            // Only set trial dates if they haven't been set before or if starting a new trial
+            if (!$user->trial_start || $status === 'trial') {
+                $user->trial_start = $trialStart;
+                $user->trial_end = $trialEnd;
+            }
+        }
+
         $user->save();
 
-        Log::info("Subscription updated for user {$user->id}");
+        Log::info("Subscription updated for user {$user->id}", [
+            'status' => $status,
+            'trial_start' => $trialStart,
+            'trial_end' => $trialEnd
+        ]);
 
         return response()->json(['message' => 'Subscription updated successfully']);
     }
+
 
     private function mapAppleStatusToInternal($notificationType, $subtype, $currentStatus)
     {
@@ -181,6 +243,11 @@ class SubscriptionWebhookController extends Controller
             'REFUND',                   // Refund processed
             'REVOKE'                    // Family sharing revoked
         ];
+
+        // Check for cancellation event
+        if ($notificationType === 'DID_CHANGE_RENEWAL_STATUS' && $subtype === 'AUTO_RENEW_DISABLED') {
+            return 'canceled'; // User has canceled but still has access until period ends
+        }
 
         // Check for events that set status to 'active'
         if (in_array($notificationType, $activeEvents) ||

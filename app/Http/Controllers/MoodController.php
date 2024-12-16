@@ -9,15 +9,21 @@ use Illuminate\Http\Request;
 
 class MoodController extends Controller
 {
+    // private const MOOD_RANGES = [
+    //     'Very Sad' => ['min' => 0, 'max' => 10, 'color' => '#FF6B6B'],
+    //     'Sad' => ['min' => 11, 'max' => 20, 'color' => '#FF8E72'],
+    //     'Worried' => ['min' => 21, 'max' => 30, 'color' => '#FFA07A'],
+    //     'Frustrated' => ['min' => 31, 'max' => 44, 'color' => '#FFB347'],
+    //     'Neutral' => ['min' => 45, 'max' => 55, 'color' => '#F9DC5C'],
+    //     'Pleased' => ['min' => 56, 'max' => 65, 'color' => '#98FB98'],
+    //     'Happy' => ['min' => 66, 'max' => 85, 'color' => '#4BB543'],
+    //     'Excited' => ['min' => 86, 'max' => 100, 'color' => '#228B22']
+    // ];
+
     private const MOOD_RANGES = [
-        'Very Sad' => ['min' => 0, 'max' => 10, 'color' => '#FF6B6B'],
-        'Sad' => ['min' => 11, 'max' => 20, 'color' => '#FF8E72'],
-        'Worried' => ['min' => 21, 'max' => 30, 'color' => '#FFA07A'],
-        'Frustrated' => ['min' => 31, 'max' => 44, 'color' => '#FFB347'],
-        'Neutral' => ['min' => 45, 'max' => 55, 'color' => '#F9DC5C'],
-        'Pleased' => ['min' => 56, 'max' => 65, 'color' => '#98FB98'],
-        'Happy' => ['min' => 66, 'max' => 85, 'color' => '#4BB543'],
-        'Excited' => ['min' => 86, 'max' => 100, 'color' => '#228B22']
+        'Negative' => ['min' => 0, 'max' => 44, 'color' => '#FF6666'],
+        'Neutral' => ['min' => 45, 'max' => 55, 'color' => '#668499'],
+        'Positive' => ['min' => 56, 'max' => 100, 'color' => '#00CC88']
     ];
 
     public function store(Request $request)
