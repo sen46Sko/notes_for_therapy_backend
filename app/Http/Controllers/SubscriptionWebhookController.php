@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Support\Facades\Cache;
+use Google\Client as GoogleClient;
+use Google\Service\AndroidPublisher as Google_Service_AndroidPublisher;
 
 class SubscriptionWebhookController extends Controller
 {
@@ -27,24 +30,6 @@ class SubscriptionWebhookController extends Controller
             return $this->processAppleSubscriptionUpdate($decodedPayload);
         } catch (\Exception $e) {
             Log::error('Error processing Apple Pay webhook: ' . $e->getMessage());
-            return response()->json(['error' => 'Invalid payload'], 400);
-        }
-    }
-
-    public function handleGooglePayWebhook(Request $request)
-    {
-        $encodedData = $request->input('message.data');
-        if (!$encodedData) {
-            return response()->json(['error' => 'Missing encoded data'], 400);
-        }
-
-        try {
-            $decodedData = $this->decodeGoogleNotification($encodedData);
-            Log::info('Google Pay Webhook received', $decodedData);
-
-            return $this->processGoogleSubscriptionUpdate($decodedData);
-        } catch (\Exception $e) {
-            Log::error('Error processing Google Pay webhook: ' . $e->getMessage());
             return response()->json(['error' => 'Invalid payload'], 400);
         }
     }
@@ -75,18 +60,6 @@ class SubscriptionWebhookController extends Controller
     {
         $parts = explode('.', $jws);
         return json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-    }
-
-    private function decodeGoogleNotification($encodedData)
-    {
-        $decodedJson = base64_decode($encodedData);
-        $decodedData = json_decode($decodedJson, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \Exception('Invalid JSON in decoded data');
-        }
-
-        return $decodedData;
     }
 
     private function processAppleSubscriptionUpdate($decodedPayload)
@@ -132,47 +105,6 @@ class SubscriptionWebhookController extends Controller
             $expirationDate,
             'apple_pay',
             null,
-            $trialStart,
-            $trialEnd
-        );
-    }
-
-    private function processGoogleSubscriptionUpdate($decodedData)
-    {
-        $notificationType = $decodedData['subscriptionNotification']['notificationType'] ?? null;
-        $purchaseToken = $decodedData['subscriptionNotification']['purchaseToken'] ?? null;
-        $subscriptionId = $decodedData['subscriptionNotification']['subscriptionId'] ?? null;
-
-        if (!$notificationType || !$purchaseToken || !$subscriptionId) {
-            return response()->json(['error' => 'Missing required information'], 400);
-        }
-
-        $userUuid = $this->getUserIdFromPurchaseToken($purchaseToken);
-        $status = $this->mapGoogleStatusToInternal($notificationType);
-        $expirationDate = $decodedData['eventTimeMillis'] ?? null;
-
-        // Extract trial period information from Google Pay notification
-        $trialStart = null;
-        $trialEnd = null;
-
-        if (isset($decodedData['subscriptionNotification']['isTrial']) &&
-            $decodedData['subscriptionNotification']['isTrial']) {
-            $trialStart = isset($decodedData['subscriptionNotification']['startTimeMillis'])
-                ? Carbon::createFromTimestamp($decodedData['subscriptionNotification']['startTimeMillis'] / 1000)
-                : Carbon::now();
-
-            $trialEnd = isset($decodedData['subscriptionNotification']['expiryTimeMillis'])
-                ? Carbon::createFromTimestamp($decodedData['subscriptionNotification']['expiryTimeMillis'] / 1000)
-                : null;
-        }
-
-        return $this->updateSubscription(
-            $userUuid,
-            $subscriptionId,
-            $status,
-            $expirationDate,
-            'google_pay',
-            $purchaseToken,
             $trialStart,
             $trialEnd
         );
@@ -273,30 +205,6 @@ class SubscriptionWebhookController extends Controller
         return $currentStatus;
     }
 
-    private function mapGoogleStatusToInternal($notificationType)
-    {
-        switch ($notificationType) {
-            case 1: // SUBSCRIPTION_RECOVERED
-            case 2: // SUBSCRIPTION_RENEWED
-            case 4: // SUBSCRIPTION_PURCHASED
-            case 7: // SUBSCRIPTION_RESTARTED
-                return 'active';
-            case 3: // SUBSCRIPTION_CANCELED
-                return 'cancelled';
-            case 5: // SUBSCRIPTION_ON_HOLD
-                return 'on_hold';
-            case 6: // SUBSCRIPTION_IN_GRACE_PERIOD
-                return 'active';
-            case 10: // SUBSCRIPTION_PAUSED
-                return 'paused';
-            case 12: // SUBSCRIPTION_REVOKED
-            case 13: // SUBSCRIPTION_EXPIRED
-                return 'expired';
-            default:
-                return 'inactive';
-        }
-    }
-
     private function getCurrentSubscriptionStatus($userUuid, $subscriptionId)
     {
         // Implement this method to fetch the current subscription status from your database
@@ -304,10 +212,186 @@ class SubscriptionWebhookController extends Controller
         return 'inactive'; // Default implementation - replace with actual database query
     }
 
-    private function getUserIdFromPurchaseToken($purchaseToken)
+
+    public function handleGooglePayWebhook(Request $request)
     {
-        // TODO: Implement this method to retrieve the user ID associated with the purchase token
-        // This might involve querying your database or making an API call to Google Play Developer API
-        return null;
+        // Verify the request comes from Google
+        if (!$this->verifyNotDuplicatedGoogleMessage($request)) {
+            Log::error('Duplicated request error');
+            return response()->json(['error' => 'Repeated message received, aborting'], 200);
+        }
+
+        $message = $request->input('message', []);
+        $data = $message['data'] ?? null;
+
+        if (!$data) {
+            return response()->json(['error' => 'Missing notification data'], 400);
+        }
+
+        try {
+            $decodedData = $this->decodeGoogleNotification($data);
+            Log::info('Google Play Webhook received', ['payload' => $decodedData]);
+
+            $response = $this->processGoogleSubscriptionUpdate($decodedData);
+            $this->cacheMessage($request);
+            return $response;
+        } catch (\Exception $e) {
+            Log::error('Error processing Google Play webhook: ' . $e->getMessage());
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
     }
+
+    private function verifyNotDuplicatedGoogleMessage(Request $request)
+    {
+        try {
+            $message = $request->input('message', []);
+            $messageId = $message['messageId'] ?? '';
+
+            // Prevent replay attacks
+            if (Cache::has('google_webhook_' . $messageId)) {
+                return false;
+            }
+            // Cache::put('google_webhook_' . $messageId, true, 3600); // Store for 1 hour
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Error verifying Google signature: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function cacheMessage(Request $request)
+    {
+        $message = $request->input('message', []);
+        $messageId = $message['messageId'] ?? '';
+
+        Cache::put('google_webhook_' . $messageId, true, 3600); // Store for 1 hour
+    }
+
+    private function decodeGoogleNotification($encodedData)
+    {
+        $decodedJson = base64_decode($encodedData);
+        $decodedData = json_decode($decodedJson, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \Exception('Invalid JSON in decoded data');
+        }
+
+        return $decodedData;
+    }
+
+    private function processGoogleSubscriptionUpdate($decodedData)
+    {
+        // Extract the notification data
+        $subscriptionNotification = $decodedData['subscriptionNotification'] ?? null;
+
+        if (!$subscriptionNotification) {
+            return response()->json(['error' => 'Invalid notification format'], 400);
+        }
+
+        $purchaseToken = $subscriptionNotification['purchaseToken'] ?? null;
+        $subscriptionId = $subscriptionNotification['subscriptionId'] ?? null;
+        $notificationType = $subscriptionNotification['notificationType'] ?? null;
+
+        if (!$purchaseToken || !$subscriptionId) {
+            return response()->json(['error' => 'Missing required subscription information'], 400);
+        }
+
+        try {
+            // Fetch detailed subscription info from Google Play API
+            $subscriptionInfo = $this->getSubscriptionInfoFromGoogle(
+                $purchaseToken,
+                $subscriptionId
+            );
+
+            $userUuid = $subscriptionInfo['userUuid'] ?? null;
+            $status = $this->mapGoogleStatusToInternal($notificationType);
+
+            // Convert Google's millisecond timestamps to Carbon instances
+            $expiryTime = isset($subscriptionInfo['expiryTimeMillis'])
+                ? Carbon::createFromTimestampMs($subscriptionInfo['expiryTimeMillis'])
+                : null;
+
+            $trialStart = null;
+            $trialEnd = null;
+
+            // Check if this is a trial period
+            if (isset($subscriptionInfo['paymentState']) && $subscriptionInfo['paymentState'] === 2) { // 2 = Free trial
+                $trialStart = Carbon::createFromTimestampMs($subscriptionInfo['startTimeMillis']);
+                $trialEnd = $expiryTime;
+            }
+
+            return $this->updateSubscription(
+                $userUuid,
+                $subscriptionId,
+                $status,
+                $expiryTime,
+                'google_pay',
+                $purchaseToken,
+                $trialStart,
+                $trialEnd
+            );
+
+        } catch (\Exception $e) {
+            Log::error('Error processing Google subscription update: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to process subscription update'], 500);
+        }
+    }
+
+    private function getSubscriptionInfoFromGoogle($purchaseToken, $subscriptionId)
+    {
+        $client = new GoogleClient();
+        $client->setAuthConfig(storage_path(
+            config('services.google_play.credentials')
+        ));
+        $client->addScope('https://www.googleapis.com/auth/androidpublisher');
+
+        $androidPublisher = new Google_Service_AndroidPublisher($client);
+
+        try {
+            $subscription = $androidPublisher->purchases_subscriptions->get(
+                config('services.google_play.package_name'),
+                $subscriptionId,
+                $purchaseToken
+            );
+
+            return [
+                'userUuid' => $subscription->getObfuscatedExternalAccountId(),
+                'expiryTimeMillis' => $subscription->getExpiryTimeMillis(),
+                'paymentState' => $subscription->getPaymentState(),
+                'startTimeMillis' => $subscription->getStartTimeMillis(),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error fetching subscription info from Google: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    private function mapGoogleStatusToInternal($notificationType)
+    {
+        $statusMap = [
+            1 => 'active',    // SUBSCRIPTION_RECOVERED
+            2 => 'active',    // SUBSCRIPTION_RENEWED
+            3 => 'canceled',  // SUBSCRIPTION_CANCELED
+            4 => 'active',    // SUBSCRIPTION_PURCHASED
+            5 => 'on_hold',   // SUBSCRIPTION_ON_HOLD
+            6 => 'active',    // SUBSCRIPTION_IN_GRACE_PERIOD
+            7 => 'active',    // SUBSCRIPTION_RESTARTED
+            8 => 'inactive',  // SUBSCRIPTION_PRICE_CHANGE_CONFIRMED
+            9 => 'inactive',  // SUBSCRIPTION_DEFERRED
+            10 => 'paused',   // SUBSCRIPTION_PAUSED
+            11 => 'active',   // SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED
+            12 => 'inactive', // SUBSCRIPTION_REVOKED
+            13 => 'expired',  // SUBSCRIPTION_EXPIRED
+        ];
+
+        return $statusMap[$notificationType] ?? 'inactive';
+    }
+
+    // private function getUserUuidFromPurchaseToken($purchaseToken)
+    // {
+    //     // Query your database to find the user UUID associated with this purchase token
+    //     $subscription = Subscription::where('purchase_token', $purchaseToken)->first();
+    //     return $subscription ? $subscription->user_uuid : null;
+    // }
 }

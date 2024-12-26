@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Socialite\Facades\Socialite;
-use JWTAuth;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -268,6 +268,13 @@ class AuthController extends Controller
             // Retrieve user data from Google
             // $googleUser = Socialite::driver('google')->stateless()->userFromToken($request->idToken);
             $googleUser = $this->googleAuth->verifyIdToken($request->idToken);
+
+            if (is_null($googleUser)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid Google ID token'
+                ], 400);
+            }
 
             $user = User::where('email', $googleUser['email'])->first();
 

@@ -34,6 +34,10 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+    'google_play' => [
+        'credentials' => env('GOOGLE_PLAY_CREDENTIALS'),
+        'package_name' => env('GOOGLE_PLAY_PACKAGE_NAME'),
     ]
 
 ];

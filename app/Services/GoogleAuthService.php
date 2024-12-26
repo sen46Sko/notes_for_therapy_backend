@@ -11,7 +11,8 @@ class GoogleAuthService
     public function __construct()
     {
         $this->client = new Client();
-        $this->client->setClientId('532519645180-e8g324p6248b491btpji80p1jc30bjbd.apps.googleusercontent.com');
+        // $this->client->setClientId('532519645180-e8g324p6248b491btpji80p1jc30bjbd.apps.googleusercontent.com');
+        $this->client->setClientId('921740965804-kslu1b2sho6f9hg9qps5edmrtiags3ma.apps.googleusercontent.com');
     }
 
     public function verifyIdToken($idToken)

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bc1bbaca4e4fc58c03e8b5ffdf47201c",
+    "content-hash": "a71c3e6d85a2a4e8fbf197c415696b73",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -1844,16 +1844,16 @@
         },
         {
             "name": "google/apiclient",
-            "version": "v2.17.0",
+            "version": "v2.18.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client.git",
-                "reference": "b1f63d72c44307ec8ef7bf18f1012de35d8944ed"
+                "reference": "3f6cb1a970fe2d210823a79de8d5dbae405a9616"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client/zipball/b1f63d72c44307ec8ef7bf18f1012de35d8944ed",
-                "reference": "b1f63d72c44307ec8ef7bf18f1012de35d8944ed",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client/zipball/3f6cb1a970fe2d210823a79de8d5dbae405a9616",
+                "reference": "3f6cb1a970fe2d210823a79de8d5dbae405a9616",
                 "shasum": ""
             },
             "require": {
@@ -1907,9 +1907,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client/issues",
-                "source": "https://github.com/googleapis/google-api-php-client/tree/v2.17.0"
+                "source": "https://github.com/googleapis/google-api-php-client/tree/v2.18.1"
             },
-            "time": "2024-07-10T14:57:54+00:00"
+            "time": "2024-11-24T13:21:03+00:00"
         },
         {
             "name": "google/apiclient-services",
