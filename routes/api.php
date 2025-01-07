@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\NoteQuestionController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\GoalTemplateController;
 use App\Http\Controllers\EventController;
@@ -263,4 +264,14 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::post('initialize_subscription', [StripeControllerV2::class, 'initialize_subscription']);
     Route::get('cancel_subscription', [StripeControllerV2::class, 'cancel_subscription']);
     Route::get('applyCoupon/{couponid}', [ApiController::class, 'applyCoupon']);
+
+
+
+
+    // Watson chat
+
+    Route::prefix('chat')->group(function () {
+        Route::post('/session', [ChatController::class, 'createSession']);
+        Route::post('/session/{sessionId}/message', [ChatController::class, 'sendMessage']);
+    });
 });

@@ -302,7 +302,7 @@ class AuthController extends Controller
             if ($user->is_google_signup == 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User already exists with this email. Please login with email and password.'
+                    'message' => 'An account with this email already exists. Please use your email and password to log in instead of Google Sign-In.'
                 ], 400);
             }
             // Update user's FCM token
