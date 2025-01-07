@@ -82,6 +82,12 @@ class User extends Authenticatable implements JWTSubject
         static::creating(function ($model) {
             $model->uuid = Str::uuid();
         });
+
+        static::updating(function ($user) {
+            if ($user->isDirty('email') && $user->is_apple_signup) {
+                throw new \Exception('Email cannot be changed for Apple Sign-In accounts');
+            }
+        });
     }
 
     public function getJWTIdentifier()

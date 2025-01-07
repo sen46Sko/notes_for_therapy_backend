@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\NoteQuestionController;
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AppleAuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\GoalController;
 use App\Http\Controllers\GoalTemplateController;
@@ -59,6 +60,9 @@ Route::get('getcities/{stateid}', [ApiController::class, 'getcities']);
 
 // Google OAuth
 Route::post('auth/google', [AuthController::class, 'googleOAuth']);
+
+Route::post('auth/apple/sign-in', [AppleAuthController::class, 'signIn']);
+Route::post('auth/apple/sign-up', [AppleAuthController::class, 'signUp']);
 
 // Route::get('auth/google', [AuthController::class, 'redirectToProvider']);
 // Route::get('auth/google/callback', [AuthController::class, 'handleProviderCallback']);
