@@ -12,10 +12,11 @@ use Firebase\JWT\Key;
 use Illuminate\Support\Facades\Cache;
 use Google\Client as GoogleClient;
 use Google\Service\AndroidPublisher as Google_Service_AndroidPublisher;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionWebhookController extends Controller
 {
-     public function handleApplePayWebhook(Request $request)
+    public function handleApplePayWebhook(Request $request)
     {
         $signedPayload = $request->input('signedPayload');
         if (!$signedPayload) {
@@ -62,6 +63,18 @@ class SubscriptionWebhookController extends Controller
         return json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
     }
 
+    private function getCurrentSubscriptionStatus($userUuid, $subscriptionId)
+    {
+        // First try to find the subscription in our new subscriptions table
+        $subscription = Subscription::where('provider_subscription_id', $subscriptionId)->first();
+        if ($subscription) {
+            return $subscription->status;
+        }
+
+        // If not found, default to inactive
+        return 'inactive';
+    }
+
     private function processAppleSubscriptionUpdate($decodedPayload)
     {
         $notificationType = $decodedPayload['notificationType'] ?? null;
@@ -73,28 +86,28 @@ class SubscriptionWebhookController extends Controller
         }
 
         $transactionInfo = $data['decodedTransactionInfo'];
-        $renewalInfo = $data['decodedRenewalInfo'] ?? null;
         $userUuid = $transactionInfo['appAccountToken'] ?? null;
-        $subscriptionId = $transactionInfo['originalTransactionId'] ?? null;
+        $purchaseToken = $transactionInfo['originalTransactionId'] ?? null;
+        $subscriptionId = $transactionInfo['productId'] ?? null;
 
-        // Get current subscription status before updating
         $currentStatus = $this->getCurrentSubscriptionStatus($userUuid, $subscriptionId);
-
-        // Only update status if the notification type requires a status change
         $newStatus = $this->mapAppleStatusToInternal($notificationType, $subtype, $currentStatus);
-        $expirationDate = $transactionInfo['expiresDate'] ?? null;
 
-        // Extract trial period information
+        // Convert Apple's timestamps
+        $expirationDate = isset($transactionInfo['expiresDate'])
+            ? $transactionInfo['expiresDate'] / 1000
+            : null;
+
         $trialStart = null;
         $trialEnd = null;
 
         if (isset($transactionInfo['isTrialPeriod']) && $transactionInfo['isTrialPeriod']) {
             $trialStart = isset($transactionInfo['purchaseDate'])
-                ? Carbon::createFromTimestamp($transactionInfo['purchaseDate'] / 1000)
+                ? Carbon::createFromTimestampMs($transactionInfo['purchaseDate'])
                 : Carbon::now();
 
-            $trialEnd = isset($transactionInfo['expiresDate'])
-                ? Carbon::createFromTimestamp($transactionInfo['expiresDate'] / 1000)
+            $trialEnd = $expirationDate
+                ? Carbon::createFromTimestampMs($expirationDate * 1000)
                 : null;
         }
 
@@ -104,54 +117,11 @@ class SubscriptionWebhookController extends Controller
             $newStatus,
             $expirationDate,
             'apple_pay',
-            null,
+            $purchaseToken,
             $trialStart,
             $trialEnd
         );
     }
-
-    private function updateSubscription(
-        $userUuid,
-        $subscriptionId,
-        $status,
-        $expirationDate,
-        $provider,
-        $purchaseToken = null,
-        $trialStart = null,
-        $trialEnd = null
-    ) {
-        if (!$userUuid || !$subscriptionId || !$status) {
-            return response()->json(['error' => 'Missing required information'], 400);
-        }
-
-        $user = User::where('uuid', $userUuid)->first();
-        if (!$user) {
-            return response()->json(['error' => 'User not found'], 404);
-        }
-
-        // Update user subscription status and trial information
-        $user->subscription_status = $status;
-
-        // Only update trial dates if they are provided and the user is starting a new trial
-        if ($trialStart && $trialEnd && ($status === 'active' || $status === 'trial')) {
-            // Only set trial dates if they haven't been set before or if starting a new trial
-            if (!$user->trial_start || $status === 'trial') {
-                $user->trial_start = $trialStart;
-                $user->trial_end = $trialEnd;
-            }
-        }
-
-        $user->save();
-
-        Log::info("Subscription updated for user {$user->id}", [
-            'status' => $status,
-            'trial_start' => $trialStart,
-            'trial_end' => $trialEnd
-        ]);
-
-        return response()->json(['message' => 'Subscription updated successfully']);
-    }
-
 
     private function mapAppleStatusToInternal($notificationType, $subtype, $currentStatus)
     {
@@ -205,14 +175,6 @@ class SubscriptionWebhookController extends Controller
         return $currentStatus;
     }
 
-    private function getCurrentSubscriptionStatus($userUuid, $subscriptionId)
-    {
-        // Implement this method to fetch the current subscription status from your database
-        // Return the current status or a default value if not found
-        return 'inactive'; // Default implementation - replace with actual database query
-    }
-
-
     public function handleGooglePayWebhook(Request $request)
     {
         // Verify the request comes from Google
@@ -247,11 +209,9 @@ class SubscriptionWebhookController extends Controller
             $message = $request->input('message', []);
             $messageId = $message['messageId'] ?? '';
 
-            // Prevent replay attacks
             if (Cache::has('google_webhook_' . $messageId)) {
                 return false;
             }
-            // Cache::put('google_webhook_' . $messageId, true, 3600); // Store for 1 hour
 
             return true;
         } catch (\Exception $e) {
@@ -264,7 +224,6 @@ class SubscriptionWebhookController extends Controller
     {
         $message = $request->input('message', []);
         $messageId = $message['messageId'] ?? '';
-
         Cache::put('google_webhook_' . $messageId, true, 3600); // Store for 1 hour
     }
 
@@ -282,7 +241,6 @@ class SubscriptionWebhookController extends Controller
 
     private function processGoogleSubscriptionUpdate($decodedData)
     {
-        // Extract the notification data
         $subscriptionNotification = $decodedData['subscriptionNotification'] ?? null;
 
         if (!$subscriptionNotification) {
@@ -298,7 +256,6 @@ class SubscriptionWebhookController extends Controller
         }
 
         try {
-            // Fetch detailed subscription info from Google Play API
             $subscriptionInfo = $this->getSubscriptionInfoFromGoogle(
                 $purchaseToken,
                 $subscriptionId
@@ -307,18 +264,14 @@ class SubscriptionWebhookController extends Controller
             $userUuid = $subscriptionInfo['userUuid'] ?? null;
             $status = $this->mapGoogleStatusToInternal($notificationType);
 
-            // Convert Google's millisecond timestamps to Carbon instances
-            $expiryTime = isset($subscriptionInfo['expiryTimeMillis'])
-                ? Carbon::createFromTimestampMs($subscriptionInfo['expiryTimeMillis'])
-                : null;
-
+            // Convert Google's millisecond timestamps
+            $expiryTime = $subscriptionInfo['expiryTimeMillis'] ?? null;
             $trialStart = null;
             $trialEnd = null;
 
-            // Check if this is a trial period
-            if (isset($subscriptionInfo['paymentState']) && $subscriptionInfo['paymentState'] === 2) { // 2 = Free trial
+            if (isset($subscriptionInfo['paymentState']) && $subscriptionInfo['paymentState'] === 2) {
                 $trialStart = Carbon::createFromTimestampMs($subscriptionInfo['startTimeMillis']);
-                $trialEnd = $expiryTime;
+                $trialEnd = $expiryTime ? Carbon::createFromTimestampMs($expiryTime) : null;
             }
 
             return $this->updateSubscription(
@@ -335,6 +288,88 @@ class SubscriptionWebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('Error processing Google subscription update: ' . $e->getMessage());
             return response()->json(['error' => 'Failed to process subscription update'], 500);
+        }
+    }
+
+    private function updateSubscription(
+        $userUuid,
+        $subscriptionId,
+        $status,
+        $expirationDate,
+        $provider,
+        $purchaseToken = null,
+        $trialStart = null,
+        $trialEnd = null
+    ) {
+        if (!$subscriptionId || !$status) {
+            return response()->json(['error' => 'Missing required information'], 400);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Find or create subscription record
+            $subscription = Subscription::firstOrNew([
+                'provider' => $provider,
+                'provider_purchase_token' => $purchaseToken,
+            ]);
+
+            $subscription->provider_subscription_id = $subscriptionId;
+            // Update subscription details
+            $subscription->status = $status;
+
+            // Convert timestamp to Carbon instance if it's a timestamp
+            if (is_numeric($expirationDate)) {
+                $subscription->expiration_date = Carbon::createFromTimestampMs($expirationDate);
+            } else if ($expirationDate) {
+                $subscription->expiration_date = Carbon::parse($expirationDate);
+            }
+
+            // Handle provider-specific details
+            if ($provider === 'google_pay' && $purchaseToken) {
+                $subscription->provider_purchase_token = $purchaseToken;
+            }
+
+            // Update trial information
+            if ($trialStart && $trialEnd) {
+                $subscription->trial_start = $trialStart;
+                $subscription->trial_end = $trialEnd;
+            }
+
+            // Only update user-related information if userUuid is provided
+            if ($userUuid) {
+                $user = User::where('uuid', $userUuid)->first();
+                if ($user) {
+                    $subscription->user_id = $user->id;
+
+                    // Update user's status for backward compatibility
+                    // $user->subscription_status = $status;
+                    // $user->save();
+                }
+            }
+
+            $subscription->save();
+
+            DB::commit();
+
+            Log::info("Subscription updated", [
+                'subscription_id' => $subscription->id,
+                'user_id' => $subscription->user_id ?? null,
+                'status' => $status,
+                'provider' => $provider
+            ]);
+
+            return response()->json(['message' => 'Subscription updated successfully']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Failed to update subscription", [
+                'error' => $e->getMessage(),
+                'user_uuid' => $userUuid,
+                'subscription_id' => $subscriptionId
+            ]);
+
+            return response()->json(['error' => 'Failed to update subscription'], 500);
         }
     }
 
@@ -388,10 +423,81 @@ class SubscriptionWebhookController extends Controller
         return $statusMap[$notificationType] ?? 'inactive';
     }
 
-    // private function getUserUuidFromPurchaseToken($purchaseToken)
-    // {
-    //     // Query your database to find the user UUID associated with this purchase token
-    //     $subscription = Subscription::where('purchase_token', $purchaseToken)->first();
-    //     return $subscription ? $subscription->user_uuid : null;
-    // }
+    public function checkToken(Request $request)
+    {
+        $request->validate([
+            'provider' => 'required|string|in:apple_pay,google_pay',
+            'purchase_token' => 'required_if:provider,google_pay|string|nullable',
+            'original_transaction_id' => 'required_if:provider,apple_pay|string|nullable'
+        ]);
+
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        try {
+            $subscription = null;
+
+            if ($request->provider === 'google_pay') {
+                $subscription = Subscription::where('provider', 'google_pay')
+                    ->where('provider_purchase_token', $request->purchase_token)
+                    ->first();
+            } else {
+                $subscription = Subscription::where('provider', 'apple_pay')
+                    ->where('provider_subscription_id', $request->original_transaction_id)
+                    ->first();
+            }
+
+            if (!$subscription) {
+                return response()->json([
+                    'error' => 'No subscription found for the provided token'
+                ], 404);
+            }
+
+            // If subscription is already linked to a different user
+            if ($subscription->user_id && $subscription->user_id !== $user->id) {
+                return response()->json([
+                    'error' => 'Subscription is already linked to another user'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+            try {
+                // Update subscription with user ID
+                $subscription->user_id = $user->id;
+                $subscription->save();
+
+                // Update user's subscription status for backward compatibility
+                $user->subscription_status = $subscription->status;
+                $user->save();
+
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Subscription successfully linked to user',
+                    'subscription' => [
+                        'status' => $subscription->status,
+                        'expiration_date' => $subscription->expiration_date,
+                        'trial_end' => $subscription->trial_end
+                    ]
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error checking subscription token', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id,
+                'provider' => $request->provider
+            ]);
+
+            return response()->json([
+                'error' => 'Failed to process subscription check'
+            ], 500);
+        }
+    }
 }

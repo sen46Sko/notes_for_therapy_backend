@@ -74,6 +74,18 @@ class User extends Authenticatable implements JWTSubject
         'email_verified_at' => 'datetime',
     ];
 
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['subscription_status'];
+
+    /**
+     * Ensure we always load the subscription relation
+     */
+    protected $with = ['subscription'];
+
 
     protected static function boot()
     {
@@ -143,5 +155,41 @@ class User extends Authenticatable implements JWTSubject
         return $this->fcm_token;
         // TODO: replace with actual fcm_token;
         // return 'cTwW9F5o90XKr4_XazRCAB:APA91bE--S6kalDIeCxJUeeFebwCY6Mh0mPNoJzhdSRZO0Q7NdgrokCtSo-sxw7HadLSQfBrtJRV_TDKNQowcikNDxscLWR_zay0F3kEWMdBNquX9fOQgDIdkzBG4bcpeyZCYoUQnWNd';
+    }
+
+
+
+    /**
+     * Get user's subscriptions
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Get the active subscription if exists, otherwise get the most recent one
+     */
+    public function subscription()
+    {
+        return $this->hasOne(Subscription::class)
+            ->orderByRaw("CASE
+                WHEN status = 'active' THEN 1
+                WHEN status = 'trial' THEN 2
+                ELSE 3
+            END")
+            ->latest();
+    }
+
+    /**
+     * Get the subscription status
+     */
+    public function getSubscriptionStatusAttribute()
+    {
+        if (!$this->relationLoaded('subscription')) {
+            $this->load('subscription');
+        }
+
+        return $this->subscription ? $this->subscription->status : 'inactive';
     }
 }

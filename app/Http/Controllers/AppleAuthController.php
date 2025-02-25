@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\User;
 use App\Models\Subscription;
 use App\Models\UserExperience;
@@ -13,14 +14,17 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Services\AppleAuthService;
+use App\Services\SystemActionService;
 
 class AppleAuthController extends Controller
 {
     protected $appleAuth;
+    protected SystemActionService $systemActionService;
 
-    public function __construct(AppleAuthService $appleAuth)
+    public function __construct(AppleAuthService $appleAuth, SystemActionService $systemActionService)
     {
         $this->appleAuth = $appleAuth;
+        $this->systemActionService = $systemActionService;
     }
 
     public function signIn(Request $request)
@@ -54,6 +58,13 @@ class AppleAuthController extends Controller
             // Update FCM token
             $user->fcm_token = $request->fcm;
             $user->save();
+
+            $this->systemActionService->logAction(SystemActionType::USER_LOGGED_IN_VIA_APPLE, [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'name' => $user->name,
+                'fcm_token' => $user->fcm_token
+            ]);
 
             return $this->generateUserResponse($user);
 
@@ -90,12 +101,18 @@ class AppleAuthController extends Controller
                 'image' => null,
                 'trial_start' => Carbon::now(),
                 'trial_end' => $date->addDays(14),
-                'subscription_status' => 0,
                 'fcm_token' => $request->fcm,
                 'password' => "",
             ]);
             $user->is_google_signup = true;
             $user->save();
+
+            $this->systemActionService->logAction(SystemActionType::USER_REGISTERED_VIA_APPLE, [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'name' => $user->name,
+                'fcm_token' => $user->fcm_token
+            ]);
 
             return $this->generateUserResponse($user, true);
 

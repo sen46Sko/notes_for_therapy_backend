@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MoodController;
 use App\Http\Controllers\MoodRelationController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\StripeController;
 use App\Http\Controllers\SubscriptionWebhookController;
 use App\Http\Controllers\SymptomController;
 use App\Http\Controllers\TwoFactorAuthController;
+use App\Http\Controllers\UserActionController;
 use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
 use App\Http\Controllers\UserNotificationSettingController;
@@ -38,6 +40,21 @@ use App\Http\Controllers\UserNotificationSettingController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+
+
+
+// Admin Routes
+
+Route::post('/admin/login', [AdminAuthController::class, 'login']);
+
+Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
+    Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
+});
+
+
+
+// User Routes
 
 Route::get('', function () {
     return response()->json(['message' => 'Welcome to Notes For Therapy API']);
@@ -105,7 +122,17 @@ Route::post('payments/apple/webhook/sandbox', [SubscriptionWebhookController::cl
 Route::post('payments/google/webhook', [SubscriptionWebhookController::class, 'handleGooglePayWebhook']);
 Route::post('payments/google/webhook/sandbox', [SubscriptionWebhookController::class, 'handleGooglePayWebhook']);
 
+Route::middleware('jwt.verify')->post('/subscription/check-token', [SubscriptionWebhookController::class, 'checkToken']);
+
 Route::group(['middleware' => ['jwt.verify']], function () {
+
+
+    // Start User Action
+
+    Route::post('/record-action', [UserActionController::class, 'recordAction']);
+
+    // End User Action
+
 
     //   Start User Api
     Route::post('logout', [ApiController::class, 'logout']);

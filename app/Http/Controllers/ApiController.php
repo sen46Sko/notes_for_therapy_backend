@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Helper\StorageHelper;
 use App\Mail\NewUserEmail;
 use App\Models\Coupon;
@@ -24,6 +25,7 @@ use App\Models\User;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
 use App\Models\UserSymptom;
+use App\Services\SystemActionService;
 use App\Services\TwoFactorAuthService;
 use App\Services\UserService;
 use Carbon\Carbon;
@@ -43,10 +45,13 @@ class ApiController extends Controller
 
 
     protected $twoFactorAuthService;
+    protected SystemActionService $systemActionService;
 
-    public function __construct(TwoFactorAuthService $twoFactorAuthService)
+
+    public function __construct(TwoFactorAuthService $twoFactorAuthService, SystemActionService $systemActionService)
     {
         $this->twoFactorAuthService = $twoFactorAuthService;
+        $this->systemActionService = $systemActionService;
     }
 
     private function storeImage($request)
@@ -86,7 +91,6 @@ class ApiController extends Controller
             'image' => $path,
             'trial_start' => Carbon::now(),
             'trial_end' => $date->addDays(14),
-            'subscription_status' => 0,
             // 'phone_number' => $request->phone_number,
             'password' => bcrypt($request->password),
             'fcm_token' => '',
@@ -94,6 +98,13 @@ class ApiController extends Controller
         ]);
 
         Mail::to($user->email)->send(new NewUserEmail($user));
+
+        $this->systemActionService->logAction(SystemActionType::USER_REGISTERED, [
+            'user_id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+        ]);
+
         return $this->authenticate($request);
     }
 
@@ -334,6 +345,13 @@ class ApiController extends Controller
                 UserCoupon::where('user_id', $user->id)->delete();
                 UserSymptom::where('user_id', $user->id)->delete();
                 User::whereId($user->id)->delete();
+
+
+                $this->systemActionService->logAction(SystemActionType::USER_ACCOUNT_DELETED, [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ]);
 
                 return response()->json([
                     'success' => true,

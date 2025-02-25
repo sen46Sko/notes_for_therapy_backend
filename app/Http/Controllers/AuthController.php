@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Mail\AuthAlertEmail;
 use App\Mail\OtpEmail;
 use App\Models\Subscription;
@@ -12,6 +13,7 @@ use App\Models\TwoFactorAuth;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
 use App\Services\GoogleAuthService;
+use App\Services\SystemActionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,10 +25,12 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 class AuthController extends Controller
 {
     protected $googleAuth;
+    protected SystemActionService $systemActionService;
 
-    public function __construct(GoogleAuthService $googleAuth)
+    public function __construct(GoogleAuthService $googleAuth, SystemActionService $systemActionService)
     {
         $this->googleAuth = $googleAuth;
+        $this->systemActionService = $systemActionService;
     }
     private function generateOtpForUser(User $user)
     {
@@ -289,7 +293,6 @@ class AuthController extends Controller
                     'image' => $googleUser['picture'],
                     'trial_start' => Carbon::now(),
                     'trial_end' => $date->addDays(14),
-                    'subscription_status' => 0,
                     'fcm_token' => '',
                     'password' => ""
 
@@ -297,6 +300,13 @@ class AuthController extends Controller
                 $user->is_google_signup = true;
                 $user->save();
                 $is_signup = true;
+
+                $this->systemActionService->logAction(SystemActionType::USER_REGISTERED_VIA_GOOGLE, [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'name' => $user->name,
+                    'fcm_token' => $user->fcm_token
+                ]);
             }
 
             if ($user->is_google_signup == 0) {
@@ -340,6 +350,12 @@ class AuthController extends Controller
 
             $userNotificationSettings = $user->userNotificationSettings;
             $twoFactor = TwoFactorAuth::where('user_id', $user->id)->first();
+
+            $this->systemActionService->logAction(SystemActionType::USER_LOGGED_IN_VIA_GOOGLE, [
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ]);
 
             //Token created, return with success response and jwt token
             return response()->json([
