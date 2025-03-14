@@ -46,10 +46,22 @@ use App\Http\Controllers\UserNotificationSettingController;
 
 // Admin Routes
 
+// Admin auth routes
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/confirm-register', [AdminAuthController::class, 'confirmRegister']);
 
+// Admin protected routes
 Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
+    // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
+
+    // Admin management
+    Route::post('/admin/create-admin', [AdminAuthController::class, 'createAdmin'])->middleware('check.permission:assign_roles');
+    Route::get('/admin/get-admins', [AdminAuthController::class, 'getAdmins']);
+    Route::post('/admin/update-admin-role/{id}', [AdminAuthController::class, 'updateAdminRole'])->middleware('check.permission:assign_roles');
+    Route::post('/admin/update-admin-permission/{id}', [AdminAuthController::class, 'updateAdminPermission'])->middleware('check.permission:modify_permissions');
+    Route::post('/admin/remove-admin', [AdminAuthController::class, 'removeAdmin'])->middleware('check.permission:modify_permissions');
+    Route::post('/admin/deactivate-admin', [AdminAuthController::class, 'deactivateAdmin'])->middleware('check.permission:modify_permissions');
 });
 
 

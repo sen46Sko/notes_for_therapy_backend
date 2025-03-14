@@ -346,12 +346,15 @@ class ApiController extends Controller
                 UserSymptom::where('user_id', $user->id)->delete();
                 User::whereId($user->id)->delete();
 
-
-                $this->systemActionService->logAction(SystemActionType::USER_ACCOUNT_DELETED, [
-                    'user_id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                ]);
+                // Fix: Use the enum correctly
+                $this->systemActionService->logAction(
+                    SystemActionType::USER_ACCOUNT_DELETED,
+                    [
+                        'user_id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                    ]
+                );
 
                 return response()->json([
                     'success' => true,

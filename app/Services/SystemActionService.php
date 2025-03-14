@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class SystemActionService
 {
-    public function logAction(SystemActionType $actionType, ?array $payload = null): SystemAction
+    public function logAction(string $actionType, ?array $payload = null): SystemAction
     {
         try {
             return SystemAction::create([
