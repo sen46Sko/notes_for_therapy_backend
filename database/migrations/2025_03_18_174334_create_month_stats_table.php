@@ -15,7 +15,7 @@ class CreateMonthStatsTable extends Migration
     {
         Schema::create('month_stats', function (Blueprint $table) {
             $table->id();
-            $table->integer('date');
+            $table->timestamp('date');
             $table->integer('subscription_counter');
             $table->integer('trial_counter');
             $table->integer('cancle_counter');
