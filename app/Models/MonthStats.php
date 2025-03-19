@@ -16,7 +16,7 @@ class MonthStats extends Model
         'total_users',
         'subscription_counter',
         'trial_counter',
-        'cancle_counter',
+        'cancel_counter',
         'monthly_plan',
         'yearly_plan',
         'signups',

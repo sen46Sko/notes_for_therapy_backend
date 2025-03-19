@@ -18,7 +18,7 @@ class CreateMonthStatsTable extends Migration
             $table->timestamp('date');
             $table->integer('subscription_counter')->default(0);
             $table->integer('trial_counter')->default(0);
-            $table->integer('cancle_counter')->default(0);
+            $table->integer('cancel_counter')->default(0);
             $table->integer('monthly_plan')->default(0);
             $table->integer('yearly_plan')->default(0);
             $table->integer('total_users')->default(0);
