@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminAuthController;
+use App\Http\Controllers\AdminStatsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MoodController;
 use App\Http\Controllers\MoodRelationController;
@@ -52,6 +53,10 @@ Route::post('/admin/confirm-register', [AdminAuthController::class, 'confirmRegi
 
 // Admin protected routes
 Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
+    // Monthly and Yearly stats
+    Route::get('/admin/yearly_stats', [AdminStatsController::class, 'yearly_stats']);
+    Route::get('/admin/monthly_stats', [AdminStatsController::class, 'monthly_stats']);
+
     // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
 
