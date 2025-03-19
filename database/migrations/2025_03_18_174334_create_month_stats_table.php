@@ -16,16 +16,16 @@ class CreateMonthStatsTable extends Migration
         Schema::create('month_stats', function (Blueprint $table) {
             $table->id();
             $table->timestamp('date');
-            $table->integer('subscription_counter');
-            $table->integer('trial_counter');
-            $table->integer('cancle_counter');
-            $table->integer('monthly_plan');
-            $table->integer('yearly_plan');
-            $table->integer('total_users');
-            $table->integer('signups');
-            $table->integer('delete_account_counter');
-            $table->integer('resolved_tickets');
-            $table->integer('ticket_created');
+            $table->integer('subscription_counter')->default(0);
+            $table->integer('trial_counter')->default(0);
+            $table->integer('cancle_counter')->default(0);
+            $table->integer('monthly_plan')->default(0);
+            $table->integer('yearly_plan')->default(0);
+            $table->integer('total_users')->default(0);
+            $table->integer('signups')->default(0);
+            $table->integer('delete_account_counter')->default(0);
+            $table->integer('resolved_tickets')->default(0);
+            $table->integer('ticket_created')->default(0);
             $table->timestamps();
         });
     }
