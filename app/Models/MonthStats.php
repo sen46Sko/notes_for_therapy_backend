@@ -24,4 +24,14 @@ class MonthStats extends Model
         'resolved_tickets',
         'ticket_created'
     ];
+
+    public function incrementCounter(string $columnName): int {
+        $latestEntry = self::query()->orderBy('date', 'desc')->first();
+
+        if(!$latestEntry) {
+            return 0;
+        }
+
+        return $latestEntry->increment($columnName);
+    }
 }

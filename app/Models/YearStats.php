@@ -22,6 +22,16 @@ class YearStats extends Model
         'signups',
         'delete_account_counter',
         'resolved_tickets',
-        'ticket_created'
+        'ticket_create'
     ];
+
+    public function incrementCounter(string $columnName): int {
+        $latestEntry = self::query()->orderBy('date', 'desc')->first();
+
+        if(!$latestEntry) {
+            return 0;
+        }
+
+        return $latestEntry->increment($columnName);
+    }
 }
