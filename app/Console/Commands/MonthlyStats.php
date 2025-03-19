@@ -3,6 +3,9 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Carbon\Carbon;
+use App\Models\User;
+use App\Models\MonthStats;
 
 class MonthlyStats extends Command
 {
@@ -37,6 +40,19 @@ class MonthlyStats extends Command
      */
     public function handle()
     {
+        $date = Carbon::now()->startOfMonth();
+
+        $totalUsers = User::count();
+
+        $exists = MonthStats::whereYear('date', $date->year)->whereMonth('date', $date->month)->exists(); 
+
+        if(!$exists) {
+            MonthStats::create([
+                'date' => $date,
+                'total_users' => $totalUsers,
+            ]);
+        }
+
         return 0;
     }
 }
