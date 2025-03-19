@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\SystemActionType;
 use App\Mail\AuthAlertEmail;
 use App\Mail\OtpEmail;
+use App\Models\MonthStats;
 use App\Models\Subscription;
 use App\Models\UsedCoupon;
 use App\Models\User;
@@ -12,6 +13,7 @@ use App\Models\Onboarding;
 use App\Models\TwoFactorAuth;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
+use App\Models\YearStats;
 use App\Services\GoogleAuthService;
 use App\Services\SystemActionService;
 use Carbon\Carbon;
@@ -356,6 +358,15 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
             ]);
+
+            YearStats::incrementCounter('trial_counter');
+            MonthStats::incrementCounter('trial_counter');
+    
+            YearStats::incrementCounter('signups');
+            YearStats::incrementCounter('total_users');
+    
+            MonthStats::incrementCounter('signups');
+            MonthStats::incrementCounter('total_users');
 
             //Token created, return with success response and jwt token
             return response()->json([

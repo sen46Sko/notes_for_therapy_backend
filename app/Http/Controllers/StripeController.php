@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MonthStats;
+use App\Models\YearStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Stripe;
@@ -401,6 +403,10 @@ class StripeController extends Controller
                 "message" => $e
             ]);
         }
+
+        YearStats::incrementCounter('subscription_counter');
+        MonthStats::incrementCounter('subscription_counter');
+
         return response()->json([
             'status'=>True,
             "message" => 'Subscribed Successfully',
@@ -412,6 +418,10 @@ class StripeController extends Controller
     }
     public function cancel_subscription(){
         User::whereId(Auth::user()->id)->update(['subscription_status'=>0]);
+        
+        YearStats::incrementCounter('cancel_counter');
+        MonthStats::incrementCounter('cancel_counter');
+        
         return response()->json([
             "status"=>true,
             'message'=>"Subscription Cancelled"

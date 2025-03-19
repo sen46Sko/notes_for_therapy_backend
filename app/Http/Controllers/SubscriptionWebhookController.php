@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MonthStats;
 use App\Models\User;
 use App\Models\Subscription;
+use App\Models\YearStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -358,6 +360,18 @@ class SubscriptionWebhookController extends Controller
                 'status' => $status,
                 'provider' => $provider
             ]);
+
+            YearStats::incrementCounter('subscription_counter');
+            MonthStats::incrementCounter('subscription_counter');
+
+            if($subscription->provider_subscription_id === "notes_monthly_1") {
+                YearStats::incrementCounter('monthly_plan');
+                MonthStats::incrementCounter('monthly_plan');
+            }
+            if($subscription->provider_subscription_id === "notes_yearly_1") {
+                YearStats::incrementCounter('yearly_plan');
+                MonthStats::incrementCounter('yearly_plan');
+            }
 
             return response()->json(['message' => 'Subscription updated successfully']);
 

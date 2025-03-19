@@ -25,6 +25,8 @@ use App\Models\User;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
 use App\Models\UserSymptom;
+use App\Models\YearStats;
+use App\Models\MonthStats;
 use App\Services\SystemActionService;
 use App\Services\TwoFactorAuthService;
 use App\Services\UserService;
@@ -104,6 +106,15 @@ class ApiController extends Controller
             'name' => $user->name,
             'email' => $user->email,
         ]);
+
+        YearStats::incrementCounter('trial_counter');
+        MonthStats::incrementCounter('trial_counter');
+
+        YearStats::incrementCounter('signups');
+        YearStats::incrementCounter('total_users');
+
+        MonthStats::incrementCounter('signups');
+        MonthStats::incrementCounter('total_users');
 
         return $this->authenticate($request);
     }
@@ -355,6 +366,9 @@ class ApiController extends Controller
                         'email' => $user->email,
                     ]
                 );
+
+                YearStats::incrementCounter('delete_account_counter');
+                MonthStats::incrementCounter('delete_account_counter');
 
                 return response()->json([
                     'success' => true,

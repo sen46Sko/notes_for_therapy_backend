@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MonthStats;
+use App\Models\YearStats;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Stripe;
@@ -110,6 +112,10 @@ class StripeControllerV2 extends Controller
       $subscription->payment_status = null;
       $subscription->save();
     }
+
+    YearStats::incrementCounter('cancel_counter');
+    MonthStats::incrementCounter('cancel_counter');
+
     return response()->json(['message' => 'Subscription cancelled'], 200);
   }
 
@@ -189,6 +195,15 @@ class StripeControllerV2 extends Controller
     // ], [
     //   'stripe_version' => '2022-08-01',
     // ]);
+
+    if($plan->recurring->interval === "month") {
+      YearStats::incrementCounter('monthly_plan');
+      MonthStats::incrementCounter('monthly_plan');
+    }
+    if($plan->recurring->interval === "year") {
+      YearStats::incrementCounter('yearly_plan');
+      MonthStats::incrementCounter('yearly_plan');
+    }
 
     return response()->json([
       'customer' => $customer->id,
