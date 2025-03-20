@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\SystemActionType;
 use App\Models\SystemAction;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -38,7 +39,27 @@ class AdminStatsController extends Controller
         }
 
         $logs = $query->get();
+        $totalUsers = User::count();
 
-        return response()->json($logs);
+        $stats = [
+            'subscription_counter' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)->count(),
+            'trial_counter' => $logs->where('action_type', SystemActionType::TRIAL_STARTED)->count(),
+            'cancel_counter' => $logs->where('action_type', SystemActionType::SUBSCRIPTION_CANCELLED)->count(),
+            'signups' => $logs->whereIn('action_type', [
+                SystemActionType::USER_REGISTERED, 
+                SystemActionType::USER_REGISTERED_VIA_APPLE, 
+                SystemActionType::USER_REGISTERED_VIA_GOOGLE
+            ])->count(),
+            'delete_account_counter' => $logs->where('action_type', SystemActionType::USER_ACCOUNT_DELETED)->count(),
+            'resolved_tickets' => $logs->where('action_type', SystemActionType::TICKET_RESOLVED)->count(),
+            'ticket_created' => $logs->where('action_type', SystemActionType::TICKET_CREATED)->count(),
+            'total_users' => $totalUsers,
+            'monthly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)
+                ->where('payload->plan', 'month')->count(), 
+            'yearly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)
+                ->where('payload->plan', 'year')->count(),
+        ];
+
+        return response()->json($stats);
     }
 }
