@@ -105,16 +105,10 @@ class ApiController extends Controller
             'user_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'date' => $date,
         ]);
 
-        YearStats::incrementCounter('trial_counter');
-        MonthStats::incrementCounter('trial_counter');
-
-        YearStats::incrementCounter('signups');
-        YearStats::incrementCounter('total_users');
-
-        MonthStats::incrementCounter('signups');
-        MonthStats::incrementCounter('total_users');
+        $this->systemActionService->logAction(SystemActionType::TRIAL_STARTED, ['user_id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'date' => $date]);
 
         return $this->authenticate($request);
     }
@@ -366,9 +360,6 @@ class ApiController extends Controller
                         'email' => $user->email,
                     ]
                 );
-
-                YearStats::incrementCounter('delete_account_counter');
-                MonthStats::incrementCounter('delete_account_counter');
 
                 return response()->json([
                     'success' => true,

@@ -359,15 +359,6 @@ class AuthController extends Controller
                 'email' => $user->email,
             ]);
 
-            YearStats::incrementCounter('trial_counter');
-            MonthStats::incrementCounter('trial_counter');
-    
-            YearStats::incrementCounter('signups');
-            YearStats::incrementCounter('total_users');
-    
-            MonthStats::incrementCounter('signups');
-            MonthStats::incrementCounter('total_users');
-
             //Token created, return with success response and jwt token
             return response()->json([
                 'success' => true,

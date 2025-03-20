@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\MonthStats;
 use App\Models\YearStats;
+use App\Services\SystemActionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Stripe;
@@ -13,15 +16,20 @@ use App\Models\Subscription;
 
 class StripeController extends Controller
 {
+
+    protected SystemActionService $systemActionService;
+
     /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
      */
-    public function __construct()
+    public function __construct(SystemActionService $systemActionService)
     {
         Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
         $this->stripe  = new \Stripe\StripeClient(env('STRIPE_SECRET'));
+
+        $this->systemActionService = $systemActionService;
     }
     public function index()
     {
@@ -404,8 +412,7 @@ class StripeController extends Controller
             ]);
         }
 
-        YearStats::incrementCounter('subscription_counter');
-        MonthStats::incrementCounter('subscription_counter');
+        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, ['user_id' => $user->id, 'date' => Carbon::now()]);
 
         return response()->json([
             'status'=>True,
@@ -418,9 +425,8 @@ class StripeController extends Controller
     }
     public function cancel_subscription(){
         User::whereId(Auth::user()->id)->update(['subscription_status'=>0]);
-        
-        YearStats::incrementCounter('cancel_counter');
-        MonthStats::incrementCounter('cancel_counter');
+
+        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, ['date' => Carbon::now()]);
         
         return response()->json([
             "status"=>true,

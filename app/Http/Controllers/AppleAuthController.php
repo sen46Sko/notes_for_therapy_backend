@@ -115,16 +115,7 @@ class AppleAuthController extends Controller
                 'name' => $user->name,
                 'fcm_token' => $user->fcm_token
             ]);
-
-            YearStats::incrementCounter('trial_counter');
-            MonthStats::incrementCounter('trial_counter');
-    
-            YearStats::incrementCounter('signups');
-            YearStats::incrementCounter('total_users');
-    
-            MonthStats::incrementCounter('signups');
-            MonthStats::incrementCounter('total_users');
-
+            
             return $this->generateUserResponse($user, true);
 
         } catch (\Exception $e) {
