@@ -12,12 +12,11 @@ class SystemActionType
     const USER_LOGGED_IN_VIA_GOOGLE = 'user_logged_in_via_google';
     const USER_ACCOUNT_DELETED = 'user_account_deleted';
     const REPORT_CREATED = 'report_created';
-
     const TRIAL_STARTED = 'trial_started';
-
     const SUBSCRIPTION = 'subscription';
-
     const SUBSCRIPTION_CANCELLED = 'subscription_cancelled';
+    const TICKET_RESOLVED = 'ticket_resolved';
+    const TICKET_CREATED = 'ticket_created';
 
     private $value;
 

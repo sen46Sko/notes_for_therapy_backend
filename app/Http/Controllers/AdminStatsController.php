@@ -26,6 +26,8 @@ class AdminStatsController extends Controller
             SystemActionType::USER_REGISTERED_VIA_APPLE,
             SystemActionType::USER_REGISTERED_VIA_GOOGLE,
             SystemActionType::USER_ACCOUNT_DELETED,
+            SystemActionType::TICKET_RESOLVED,
+            SystemActionType::TICKET_CREATED,
         ];
 
         $query = SystemAction::whereYear('created_at', $year)
