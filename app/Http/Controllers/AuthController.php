@@ -307,7 +307,8 @@ class AuthController extends Controller
                     'user_id' => $user->id,
                     'email' => $user->email,
                     'name' => $user->name,
-                    'fcm_token' => $user->fcm_token
+                    'fcm_token' => $user->fcm_token,
+                    'date' => Carbon::now(),
                 ]);
             }
 
@@ -357,6 +358,7 @@ class AuthController extends Controller
                 'user_id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'date' => Carbon::now(),
             ]);
 
             //Token created, return with success response and jwt token

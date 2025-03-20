@@ -65,7 +65,8 @@ class AppleAuthController extends Controller
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'name' => $user->name,
-                'fcm_token' => $user->fcm_token
+                'fcm_token' => $user->fcm_token,
+                'date' => Carbon::now(),
             ]);
 
             return $this->generateUserResponse($user);
@@ -113,9 +114,10 @@ class AppleAuthController extends Controller
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'name' => $user->name,
-                'fcm_token' => $user->fcm_token
+                'fcm_token' => $user->fcm_token,
+                'date' => Carbon::now(),
             ]);
-            
+
             return $this->generateUserResponse($user, true);
 
         } catch (\Exception $e) {

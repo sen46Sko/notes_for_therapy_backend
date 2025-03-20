@@ -373,7 +373,11 @@ class SubscriptionWebhookController extends Controller
             }
 
             $systemActionService = new SystemActionService();
-            $systemActionService->logAction(SystemActionType::SUBSCRIPTION, ['user_id' => $user->id, 'date' => Carbon::now(), 'plan' => $plan]);
+            $systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
+                'user_id' => $user->id, 
+                'date' => Carbon::now(), 
+                'plan' => $plan
+            ]);
 
             return response()->json(['message' => 'Subscription updated successfully']);
 

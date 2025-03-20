@@ -412,7 +412,10 @@ class StripeController extends Controller
             ]);
         }
 
-        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, ['user_id' => $user->id, 'date' => Carbon::now()]);
+        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
+            'user_id' => $user->id, 
+            'date' => Carbon::now()
+        ]);
 
         return response()->json([
             'status'=>True,

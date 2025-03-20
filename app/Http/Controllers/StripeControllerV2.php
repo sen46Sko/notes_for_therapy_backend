@@ -120,7 +120,10 @@ class StripeControllerV2 extends Controller
       $subscription->save();
     }
 
-    $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, ['user_id' => $user->id, 'date' => Carbon::now()]);
+    $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, [
+      'user_id' => $user->id, 
+      'date' => Carbon::now()
+    ]);
 
     return response()->json(['message' => 'Subscription cancelled'], 200);
   }
@@ -202,7 +205,11 @@ class StripeControllerV2 extends Controller
     //   'stripe_version' => '2022-08-01',
     // ]);
 
-    $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, ['user_id' => $user->id, 'date' => Carbon::now(), 'plan' => $plan->reccuring->interval]);
+    $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
+      'user_id' => $user->id, 
+      'date' => Carbon::now(), 
+      'plan' => $plan->reccuring->interval
+    ]);
 
     return response()->json([
       'customer' => $customer->id,
