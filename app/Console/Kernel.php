@@ -19,8 +19,6 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         Log::info('Scheduling notifications:send command');
         $schedule->command('notifications:send')->everyMinute();
-        $schedule->command('cron:monthly_stats')->monthlyOn(1, '0:0');
-        $schedule->command('cron:yearly_stats')->yearlyOn(1, 1, '0:0');
     }
 
     /**
