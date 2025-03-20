@@ -122,7 +122,6 @@ class StripeControllerV2 extends Controller
 
     $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, [
       'user_id' => $user->id, 
-      'date' => Carbon::now()
     ]);
 
     return response()->json(['message' => 'Subscription cancelled'], 200);
@@ -207,7 +206,6 @@ class StripeControllerV2 extends Controller
 
     $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
       'user_id' => $user->id, 
-      'date' => Carbon::now(), 
       'plan' => $plan->reccuring->interval
     ]);
 

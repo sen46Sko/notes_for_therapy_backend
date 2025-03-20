@@ -375,7 +375,6 @@ class SubscriptionWebhookController extends Controller
             $systemActionService = new SystemActionService();
             $systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
                 'user_id' => $user->id, 
-                'date' => Carbon::now(), 
                 'plan' => $plan
             ]);
 

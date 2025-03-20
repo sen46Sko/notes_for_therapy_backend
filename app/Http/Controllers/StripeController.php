@@ -414,7 +414,6 @@ class StripeController extends Controller
 
         $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
             'user_id' => $user->id, 
-            'date' => Carbon::now()
         ]);
 
         return response()->json([
@@ -429,7 +428,7 @@ class StripeController extends Controller
     public function cancel_subscription(){
         User::whereId(Auth::user()->id)->update(['subscription_status'=>0]);
 
-        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, ['date' => Carbon::now()]);
+        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, ['user_id' => Auth::user()->id]);
         
         return response()->json([
             "status"=>true,

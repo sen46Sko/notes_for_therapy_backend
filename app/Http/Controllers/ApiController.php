@@ -105,14 +105,12 @@ class ApiController extends Controller
             'user_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'date' => $date,
         ]);
 
         $this->systemActionService->logAction(SystemActionType::TRIAL_STARTED, [
             'user_id' => $user->id, 
             'name' => $user->name, 
-            'email' => $user->email, 
-            'date' => $date
+            'email' => $user->email,
         ]);
 
         return $this->authenticate($request);
@@ -363,7 +361,6 @@ class ApiController extends Controller
                         'user_id' => $user->id,
                         'name' => $user->name,
                         'email' => $user->email,
-                        'date' => Carbon::now(),
                     ]
                 );
 
