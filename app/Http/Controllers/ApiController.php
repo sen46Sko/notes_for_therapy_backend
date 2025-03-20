@@ -25,8 +25,6 @@ use App\Models\User;
 use App\Models\UserCoupon;
 use App\Models\UserExperience;
 use App\Models\UserSymptom;
-use App\Models\YearStats;
-use App\Models\MonthStats;
 use App\Services\SystemActionService;
 use App\Services\TwoFactorAuthService;
 use App\Services\UserService;

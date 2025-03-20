@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SystemActionType;
-use App\Models\MonthStats;
 use App\Models\User;
 use App\Models\Subscription;
 use App\Models\UserExperience;
@@ -11,7 +10,6 @@ use App\Models\Onboarding;
 use App\Models\UserCoupon;
 use App\Models\UsedCoupon;
 use App\Models\TwoFactorAuth;
-use App\Models\YearStats;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;

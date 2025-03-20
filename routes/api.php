@@ -54,7 +54,7 @@ Route::post('/admin/confirm-register', [AdminAuthController::class, 'confirmRegi
 // Admin protected routes
 Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
     // Stats
-    Route::get('/admin/stats', [AdminStatsController::class, 'yearly_stats']);
+    Route::get('/admin/stats', [AdminStatsController::class, 'stats']);
 
     // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
