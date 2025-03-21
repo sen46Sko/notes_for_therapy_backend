@@ -3,13 +3,57 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SystemActionType;
+use App\Models\Subscription;
 use App\Models\SystemAction;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Str;
 
 class AdminStatsController extends Controller
 {
+    public function userActivity(Request $request) {
+
+        $loginMethods = [
+            SystemActionType::USER_LOGGED_IN,
+            SystemActionType::USER_LOGGED_IN_VIA_APPLE,
+            SystemActionType::USER_LOGGED_IN_VIA_GOOGLE,
+        ];
+
+        $today = Carbon::now();
+        $prevMonth = Carbon::now()->subMonth();
+
+        $activeUsersCurrentMonth = SystemAction::whereIn('action_type', $loginMethods)
+            ->whereMonth('created_at',$today->month)
+            ->count();
+        
+        $activeUsersPrevMonth = SystemAction::whereIn('action_type', $loginMethods)
+            ->whereMonth('created_at', $prevMonth->month)
+            ->count();
+
+        $activeSubscriptionsCurrent = Subscription::where('status', 'active')->count();
+
+        $activeSubscriptionsPrevMonth = Subscription::where('created_at', '<=', $prevMonth)
+            ->where('expiration_date', '>', $prevMonth)
+            ->count();
+
+        
+        $feedbackCurrentMonth = 126;
+        $feedbackPrevMonth = 123;
+
+        $totalUsersCurrently = User::count();
+        $totalUsersPrevMonth = User::where('created_at', '<=', $prevMonth)->count();
+
+        $response = [
+            'activeUsers' => [ 'current' => $activeUsersCurrentMonth, 'prev' => $activeUsersPrevMonth],
+            'subscriptions' => ['current' => $activeSubscriptionsCurrent, 'prev' => $activeSubscriptionsPrevMonth],
+            'feedback' => ['current' => $feedbackCurrentMonth, 'prev' => $feedbackPrevMonth],
+            'totalUsers' => ['current' => $totalUsersCurrently, 'prev' => $totalUsersPrevMonth]
+        ];
+
+        return response()->json($response);
+    }
+
     public function stats(Request $request) {
         $validated = $request->validate([
             'year' => ['required', 'integer', 'digits:4', 'min:0', 'max:' . date('Y')],
