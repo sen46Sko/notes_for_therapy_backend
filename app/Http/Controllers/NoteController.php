@@ -3,106 +3,150 @@
 namespace App\Http\Controllers;
 
 use App\Models\Note;
-use Illuminate\Auth\Events\Validated;
-use Auth;
-use Symfony\Component\HttpFoundation\Response;
+use App\Models\NoteQuestion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class NoteController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
+    // public function __construct()
+    // {
+    //     $this->middleware('auth');
+    // }
+
+    public function index(Request $request)
     {
-        $note = Note::with('tracking')->where('user_id',Auth::user()->id)->get();
-        return response()->json([
-            'success' => true,
-            'data' => $note
-        ], Response::HTTP_OK);
+        $query = $request->query('query');
+
+        $q = Note::with('question')
+            ->where('user_id', Auth::id());
+
+        if ($query != null && $query != '') {
+            $q = $q->where(function ($q) use ($query) {
+                    return $q->where('title', 'like', "%{$query}%")
+                    ->orWhere('note', 'like', "%{$query}%");
+                });
+        }
+
+        $notes = $q->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($note) {
+                return [
+                    'id' => $note->id,
+                    'title' => $note->title,
+                    'question' => [
+                        'id' => $note->question->id,
+                        'title' => $note->question->title,
+                    ],
+                    'note' => $note->note,
+                    'created_at' => $note->created_at->toDateTimeString(),
+                ];
+            });
+
+        $sql = Note::with('question')
+            ->where('user_id', Auth::id())
+            ->where(function ($q) use ($query) {
+                $q->where('title', 'like', "%{$query}%")
+                    ->orWhere('note', 'like', "%{$query}%");
+            })
+            ->orderBy('created_at', 'desc')
+            ->toSql();
+
+        Log::info($sql);
+
+        return response()->json($notes);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function store(Request $request)
     {
-        $note = Note::create($request->all()+['user_id'=>Auth::user()->id]);
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'question_id' => 'sometimes|exists:note_questions,id',
+            'note' => 'required|string',
+        ]);
+
+        $validatedData['user_id'] = Auth::id();
+
+        $note = Note::create($validatedData);
+        $note->load('question');
+
         return response()->json([
-            'success' => true,
-            'data' => $note->id
-        ], Response::HTTP_OK);
+            'id' => $note->id,
+            'title' => $note->title,
+            'question' => [
+                'id' => $note->question->id,
+                'title' => $note->question->title,
+            ],
+            'note' => $note->note,
+            'created_at' => $note->created_at->toDateTimeString(),
+        ], 201);
     }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Note $note)
-    {
-        return response()->json([
-            'success' => true,
-            'data' => $note
-        ], Response::HTTP_OK);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function update(Request $request, $id)
     {
-        Note::find($id)->update($request->all());
-        $note = Note::find($id);
+        $note = Note::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $validatedData = $request->validate([
+            'title' => 'sometimes|required|string|max:255',
+            'question_id' => 'sometimes|required|exists:note_questions,id',
+            'note' => 'sometimes|required|string',
+        ]);
+
+        $note->update($validatedData);
+        $note->load('question');
+
         return response()->json([
-            'success' => true,
-            'data' => $note
-        ], Response::HTTP_OK);
+            'id' => $note->id,
+            'title' => $note->title,
+            'question' => [
+                'id' => $note->question->id,
+                'title' => $note->question->title,
+            ],
+            'note' => $note->note,
+            'created_at' => $note->created_at->toDateTimeString(),
+            'updated_at' => $note->updated_at->toDateTimeString(),
+        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
-        Note::find($id)->delete();
+        $note = Note::where('id', $id)
+            ->where('user_id', Auth::id())
+            ->firstOrFail();
+
+        $note->delete();
+
+        return response()->json(null, 204);
+    }
+
+    public function activity()
+    {
+        $latestNotes = Note::with('question')
+            ->where('user_id', Auth::id())
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($note) {
+                return [
+                    'id' => $note->id,
+                    'title' => $note->title,
+                    'question' => [
+                        'id' => $note->question->id,
+                        'title' => $note->question->title,
+                    ],
+                    'note' => $note->note,
+                    'created_at' => $note->created_at->toDateTimeString(),
+                ];
+            });
+
+        $totalNotes = Note::where('user_id', Auth::id())->count();
+
         return response()->json([
-            'success' => true,
-            'message' => "Delete Successfully"
-        ], Response::HTTP_OK);
+            'data' => $latestNotes,
+            'total' => $totalNotes,
+        ]);
     }
 }

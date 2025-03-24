@@ -8,13 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class Note extends Model
 {
     use HasFactory;
-    protected $guarded=[];
 
-    public function goal(){
-        return $this->belongsTo(Goal::class);
-    }
-    public function tracking(){
-        return $this->hasOne(Tracking::class,'note_id');
-    }
+    protected $fillable = ['title', 'question_id', 'note', 'user_id'];
 
+    public function question()
+    {
+        return $this->belongsTo(NoteQuestion::class, 'question_id');
+    }
 }

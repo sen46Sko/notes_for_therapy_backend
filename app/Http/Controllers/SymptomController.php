@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Symptom;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Auth;
+use App\Models\Symptom;
+use App\Models\UserSymptom;
+use Illuminate\Support\Facades\Validator;
+
 class SymptomController extends Controller
 {
     /**
@@ -13,23 +14,21 @@ class SymptomController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
-    {
-
-        return response()->json([
-            'success' => true,
-            'data' => Symptom::where('user_id',Auth::user()->id)->get(),
-        ], Response::HTTP_OK);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
+    public function common()
     {
         //
+        $symptoms = Symptom::where('user_id', null)->get();
+        return response()->json($symptoms);
+    }
+
+    public function index()
+    {
+        $userId = auth()->id();
+        $symptoms = Symptom::where('user_id', $userId)->get();
+        $commonSymptoms = Symptom::where('user_id', null)->get();
+        return response()->json(
+            $symptoms->merge($commonSymptoms)
+        );
     }
 
     /**
@@ -40,11 +39,24 @@ class SymptomController extends Controller
      */
     public function store(Request $request)
     {
-        Symptom::create($request->all()+['user_id'=>Auth::user()->id]);
-        return response()->json([
-            'success' => true,
-            'message' => "Symptom Added Succesfully"
-        ], Response::HTTP_OK);
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string',
+            'color' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 401);
+        }
+
+        $user = auth()->user();
+        $symptom = Symptom::create([
+            'name' => $request->name,
+            'color' => $request->color,
+            'user_id' => $user->id
+        ]);
+
+        return response()->json($symptom);
+
     }
 
     /**
@@ -59,17 +71,6 @@ class SymptomController extends Controller
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function edit($id)
-    {
-        //
-    }
-
-    /**
      * Update the specified resource in storage.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -78,11 +79,28 @@ class SymptomController extends Controller
      */
     public function update(Request $request, $id)
     {
-        Symptom::find($id)->update($request->all());
-        return response()->json([
-            'success' => true,
-            'message' => "Symptom Updated Successfully"
-        ], Response::HTTP_OK);
+        $userId = auth()->id();
+
+        $symptom = Symptom::where('id', $id)->where('user_id', $userId)->first();
+
+        if (!$symptom) {
+            return response()->json(['error' => 'Symptom not found'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string',
+            'color' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 401);
+        }
+
+        $symptom->name = $request->name;
+        $symptom->color = $request->color;
+        $symptom->save();
+
+        return response()->json($symptom);
     }
 
     /**
@@ -93,10 +111,19 @@ class SymptomController extends Controller
      */
     public function destroy($id)
     {
-        Symptom::find($id)->delete();
-        return response()->json([
-            'success' => true,
-            'message' => "Delete Successfully"
-        ], Response::HTTP_OK);
+        $userId = auth()->id();
+
+
+        $symptom = Symptom::where('id', $id)->where('user_id', $userId)->first();
+
+        if (!$symptom) {
+            return response()->json(['error' => 'Symptom not found'], 404);
+        }
+
+        UserSymptom::where('symptom_id', $id)->delete();
+
+        $symptom->delete();
+
+        return response()->json(['success'=>true, 'message' => 'Symptom deleted successfully']);
     }
 }

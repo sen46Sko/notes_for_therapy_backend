@@ -26,8 +26,9 @@ class User extends Authenticatable implements JWTSubject
         'referal_code',
         'verification_code',
         'code_expiry',
-        'refered_code'
-        
+        'refered_code',
+        'is_google_signup',
+
     ];
 
     /**
@@ -55,9 +56,5 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
-    }
-    public function bankDetails()
-    {
-        return $this->hasOne(BankDetails::class);
     }
 }

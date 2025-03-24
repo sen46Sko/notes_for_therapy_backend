@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\SystemActionService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,7 +14,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        $this->app->singleton(SystemActionService::class, function ($app) {
+            return new SystemActionService();
+        });
     }
 
     /**
@@ -24,5 +27,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         //
+        if(config('app.env') === 'production') {
+            \URL::forceScheme('https');
+        }
     }
 }
