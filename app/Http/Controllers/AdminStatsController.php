@@ -20,7 +20,8 @@ class AdminStatsController extends Controller
         $month = $validated['month'] ?? null;
 
         $interest = [
-            SystemActionType::SUBSCRIPTION, 
+            SystemActionType::SUBSCRIPTION_MONTHLY,
+            SystemActiontype::SUBSCRIPTION_YEARLY, 
             SystemActionType::SUBSCRIPTION_CANCELLED, 
             SystemActionType::TRIAL_STARTED, 
             SystemActionType::USER_REGISTERED,
@@ -42,7 +43,9 @@ class AdminStatsController extends Controller
         $totalUsers = User::count();
 
         $stats = [
-            'subscription_counter' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)->count(),
+            'subscription_counter' => $logs->whereIn('action_type', [
+                SystemActionType::SUBSCRIPTION_MONTHLY, SystemActionType::SUBSCRIPTION_YEARLY
+            ])->count(),
             'trial_counter' => $logs->where('action_type', SystemActionType::TRIAL_STARTED)->count(),
             'cancel_counter' => $logs->where('action_type', SystemActionType::SUBSCRIPTION_CANCELLED)->count(),
             'signups' => $logs->whereIn('action_type', [
@@ -54,10 +57,8 @@ class AdminStatsController extends Controller
             'resolved_tickets' => $logs->where('action_type', SystemActionType::TICKET_RESOLVED)->count(),
             'ticket_created' => $logs->where('action_type', SystemActionType::TICKET_CREATED)->count(),
             'total_users' => $totalUsers,
-            'monthly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)
-                ->where('payload->plan', 'month')->count(), 
-            'yearly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)
-                ->where('payload->plan', 'year')->count(),
+            'monthly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION_MONTHLY)->count(), 
+            'yearly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION_YEARLY)->count(),
         ];
 
         return response()->json($stats);
