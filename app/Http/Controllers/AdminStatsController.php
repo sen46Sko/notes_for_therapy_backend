@@ -64,9 +64,10 @@ class AdminStatsController extends Controller
         $month = $validated['month'] ?? null;
 
         $interest = [
-            SystemActionType::SUBSCRIPTION, 
-            SystemActionType::SUBSCRIPTION_CANCELLED, 
-            SystemActionType::TRIAL_STARTED, 
+            SystemActionType::SUBSCRIPTION_MONTHLY,
+            SystemActionType::SUBSCRIPTION_YEARLY,
+            SystemActionType::SUBSCRIPTION_CANCELLED,
+            SystemActionType::TRIAL_STARTED,
             SystemActionType::USER_REGISTERED,
             SystemActionType::USER_REGISTERED_VIA_APPLE,
             SystemActionType::USER_REGISTERED_VIA_GOOGLE,
@@ -75,34 +76,36 @@ class AdminStatsController extends Controller
             SystemActionType::TICKET_CREATED,
         ];
 
-        $query = SystemAction::whereYear('created_at', $year)
-            ->whereIn('action_type', $interest);
+        $query = SystemAction::selectRaw("
+            COUNT(CASE WHEN action_type IN (?, ?) THEN 1 END) AS subscription_counter,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS trial_counter,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS cancel_counter,
+            COUNT(CASE WHEN action_type IN (?, ?, ?) THEN 1 END) AS signups,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS delete_account_counter,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS resolved_tickets,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS ticket_created,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS monthly_plan,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS yearly_plan
+        ", [
+            SystemActionType::SUBSCRIPTION_MONTHLY, SystemActionType::SUBSCRIPTION_YEARLY,
+            SystemActionType::TRIAL_STARTED,
+            SystemActionType::SUBSCRIPTION_CANCELLED,
+            SystemActionType::USER_REGISTERED, SystemActionType::USER_REGISTERED_VIA_APPLE, SystemActionType::USER_REGISTERED_VIA_GOOGLE,
+            SystemActionType::USER_ACCOUNT_DELETED,
+            SystemActionType::TICKET_RESOLVED,
+            SystemActionType::TICKET_CREATED,
+            SystemActionType::SUBSCRIPTION_MONTHLY,
+            SystemActionType::SUBSCRIPTION_YEARLY
+        ])
+        ->whereYear('created_at', $year)
+        ->whereIn('action_type', $interest);
 
-        if(!empty($month)) {
+        if (!empty($month)) {
             $query->whereMonth('created_at', $month);
         }
 
-        $logs = $query->get();
-        $totalUsers = User::count();
-
-        $stats = [
-            'subscription_counter' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)->count(),
-            'trial_counter' => $logs->where('action_type', SystemActionType::TRIAL_STARTED)->count(),
-            'cancel_counter' => $logs->where('action_type', SystemActionType::SUBSCRIPTION_CANCELLED)->count(),
-            'signups' => $logs->whereIn('action_type', [
-                SystemActionType::USER_REGISTERED, 
-                SystemActionType::USER_REGISTERED_VIA_APPLE, 
-                SystemActionType::USER_REGISTERED_VIA_GOOGLE
-            ])->count(),
-            'delete_account_counter' => $logs->where('action_type', SystemActionType::USER_ACCOUNT_DELETED)->count(),
-            'resolved_tickets' => $logs->where('action_type', SystemActionType::TICKET_RESOLVED)->count(),
-            'ticket_created' => $logs->where('action_type', SystemActionType::TICKET_CREATED)->count(),
-            'total_users' => $totalUsers,
-            'monthly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)
-                ->where('payload->plan', 'month')->count(), 
-            'yearly_plan' => $logs->where('action_type', SystemActionType::SUBSCRIPTION)
-                ->where('payload->plan', 'year')->count(),
-        ];
+        $stats = $query->first()->toArray();
+        $stats['total_users'] = User::count();
 
         return response()->json($stats);
     }
