@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\Homework;
 use App\Models\HomeworkTemplate;
 use App\Models\Notification;
+use App\Services\SystemActionService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -12,6 +14,12 @@ use Illuminate\Support\Facades\Log;
 class HomeworkController extends Controller
 {
 
+    protected SystemActionService $systemActionService;
+
+    public function __construct(SystemActionService $systemActionService)
+    {
+        $this->systemActionService = $systemActionService;
+    }
 
     private function createOrUpdateNotification(Homework $homework, Request $request)
     {
@@ -81,6 +89,10 @@ class HomeworkController extends Controller
             ->take(5)
             ->get();
 
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json([
             'incomplete_count' => $incompleteCount,
             'urgent_homeworks' => $urgentHomeworks
@@ -137,12 +149,21 @@ class HomeworkController extends Controller
 
         $homework = Homework::create($request->all());
 
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($homework, 201);
     }
 
     public function show($id)
     {
         $homework = Homework::findOrFail($id);
+
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($homework);
     }
 
@@ -211,6 +232,10 @@ class HomeworkController extends Controller
 
         $homework->save();
 
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($homework);
     }
 
@@ -230,6 +255,10 @@ class HomeworkController extends Controller
                 ->delete();
         }
         $homework->delete();
+
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json(null, 204);
     }

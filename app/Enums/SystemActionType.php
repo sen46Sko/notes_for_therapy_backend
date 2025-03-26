@@ -19,6 +19,7 @@ class SystemActionType
     const TICKET_CREATED = 'ticket_created';
     const GOALS = 'goals';
     const MOODS = 'moods';
+    const HOMEWORKS = 'homeworks';
 
     private $value;
 
