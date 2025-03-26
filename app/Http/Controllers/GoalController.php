@@ -65,7 +65,7 @@ class GoalController extends Controller
                 ->get();
         }
 
-        $this->systemActionService->logAction(SystemActionType::GOALS, [
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -107,7 +107,7 @@ class GoalController extends Controller
 
         $goal->save();
 
-        $this->systemActionService->logAction(SystemActionType::GOALS, [
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -118,7 +118,7 @@ class GoalController extends Controller
     {
         $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
         
-        $this->systemActionService->logAction(SystemActionType::GOALS, [
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -172,7 +172,7 @@ class GoalController extends Controller
 
         $goal->save();
 
-        $this->systemActionService->logAction(SystemActionType::GOALS, [
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -186,7 +186,7 @@ class GoalController extends Controller
         $this->removeNotification($goal);
         $goal->delete();
 
-        $this->systemActionService->logAction(SystemActionType::GOALS, [
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 

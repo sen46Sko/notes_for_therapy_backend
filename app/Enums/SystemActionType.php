@@ -17,10 +17,10 @@ class SystemActionType
     const SUBSCRIPTION_CANCELLED = 'subscription_cancelled';
     const TICKET_RESOLVED = 'ticket_resolved';
     const TICKET_CREATED = 'ticket_created';
-    const GOALS = 'goals';
-    const MOODS = 'moods';
-    const HOMEWORKS = 'homeworks';
-    const SYMPTOMPS = 'symptomps';
+    const GOALS_INTERACTION = 'goals';
+    const MOODS_INTERACTION = 'moods';
+    const HOMEWORKS_INTERACTION = 'homeworks';
+    const SYMPTOMPS_INTERACTION = 'symptomps';
 
     private $value;
 

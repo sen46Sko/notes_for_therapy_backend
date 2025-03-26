@@ -37,7 +37,7 @@ class SymptomController extends Controller
         $symptoms = Symptom::where('user_id', $userId)->get();
         $commonSymptoms = Symptom::where('user_id', null)->get();
         
-        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -70,7 +70,7 @@ class SymptomController extends Controller
             'user_id' => $user->id
         ]);
 
-        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -119,7 +119,7 @@ class SymptomController extends Controller
         $symptom->color = $request->color;
         $symptom->save();
 
-        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -147,7 +147,7 @@ class SymptomController extends Controller
 
         $symptom->delete();
 
-        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 

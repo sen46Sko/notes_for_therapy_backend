@@ -52,7 +52,7 @@ class MoodController extends Controller
             'user_id' => auth()->id(),
         ]);
 
-        $this->systemActionService->logAction(SystemActionType::MOODS, [
+        $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -68,7 +68,7 @@ class MoodController extends Controller
             }
             $mood->delete();
 
-            $this->systemActionService->logAction(SystemActionType::MOODS, [
+            $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
                 'user_id' => auth()->id()
             ]);
 
@@ -89,7 +89,7 @@ class MoodController extends Controller
 
         $momentaryMoods = $moods->where('type', 'momentary')->values();
 
-        $this->systemActionService->logAction(SystemActionType::MOODS, [
+        $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -103,7 +103,7 @@ class MoodController extends Controller
     {
         $relations = MoodRelation::all();
 
-        $this->systemActionService->logAction(SystemActionType::MOODS, [
+        $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -148,7 +148,7 @@ class MoodController extends Controller
             }
         }
 
-        $this->systemActionService->logAction(SystemActionType::MOODS, [
+        $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -210,7 +210,7 @@ class MoodController extends Controller
         $positiveDiff = round($currentWeekPositivePercentage - $previousWeekPositivePercentage, 0);
         $negativeDiff = round($currentWeekNegativePercentage - $previousWeekNegativePercentage, 0);
 
-        $this->systemActionService->logAction(SystemActionType::MOODS, [
+        $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -305,7 +305,7 @@ class MoodController extends Controller
         $positiveDiff = round($currentMonthPositivePercentage - $previousMonthPositivePercentage, 0);
         $negativeDiff = round($currentMonthNegativePercentage - $previousMonthNegativePercentage, 0);
 
-        $this->systemActionService->logAction(SystemActionType::MOODS, [
+        $this->systemActionService->logAction(SystemActionType::MOODS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 

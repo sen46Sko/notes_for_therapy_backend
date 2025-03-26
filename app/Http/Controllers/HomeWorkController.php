@@ -89,7 +89,7 @@ class HomeworkController extends Controller
             ->take(5)
             ->get();
 
-        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -149,7 +149,7 @@ class HomeworkController extends Controller
 
         $homework = Homework::create($request->all());
 
-        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -160,7 +160,7 @@ class HomeworkController extends Controller
     {
         $homework = Homework::findOrFail($id);
 
-        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -232,7 +232,7 @@ class HomeworkController extends Controller
 
         $homework->save();
 
-        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
@@ -256,7 +256,7 @@ class HomeworkController extends Controller
         }
         $homework->delete();
 
-        $this->systemActionService->logAction(SystemActionType::HOMEWORKS, [
+        $this->systemActionService->logAction(SystemActionType::HOMEWORKS_INTERACTION, [
             'user_id' => auth()->id()
         ]);
 
