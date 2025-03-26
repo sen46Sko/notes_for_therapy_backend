@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
+use App\Services\SystemActionService;
 use Illuminate\Http\Request;
 use App\Models\Symptom;
 use App\Models\UserSymptom;
@@ -9,6 +11,14 @@ use Illuminate\Support\Facades\Validator;
 
 class SymptomController extends Controller
 {
+
+    protected SystemActionService $systemActionService;
+
+    public function __construct(SystemActionService $systemActionService)
+    {
+        $this->systemActionService = $systemActionService;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -26,6 +36,11 @@ class SymptomController extends Controller
         $userId = auth()->id();
         $symptoms = Symptom::where('user_id', $userId)->get();
         $commonSymptoms = Symptom::where('user_id', null)->get();
+        
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json(
             $symptoms->merge($commonSymptoms)
         );
@@ -53,6 +68,10 @@ class SymptomController extends Controller
             'name' => $request->name,
             'color' => $request->color,
             'user_id' => $user->id
+        ]);
+
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+            'user_id' => auth()->id()
         ]);
 
         return response()->json($symptom);
@@ -100,6 +119,10 @@ class SymptomController extends Controller
         $symptom->color = $request->color;
         $symptom->save();
 
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($symptom);
     }
 
@@ -123,6 +146,10 @@ class SymptomController extends Controller
         UserSymptom::where('symptom_id', $id)->delete();
 
         $symptom->delete();
+
+        $this->systemActionService->logAction(SystemActionType::SYMPTOMPS, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json(['success'=>true, 'message' => 'Symptom deleted successfully']);
     }

@@ -20,6 +20,7 @@ class SystemActionType
     const GOALS = 'goals';
     const MOODS = 'moods';
     const HOMEWORKS = 'homeworks';
+    const SYMPTOMPS = 'symptomps';
 
     private $value;
 
