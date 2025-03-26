@@ -2,8 +2,10 @@
 // app/Http/Controllers/MoodController.php
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\Mood;
 use App\Models\MoodRelation;
+use App\Services\SystemActionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -19,6 +21,13 @@ class MoodController extends Controller
     //     'Happy' => ['min' => 66, 'max' => 85, 'color' => '#4BB543'],
     //     'Excited' => ['min' => 86, 'max' => 100, 'color' => '#228B22']
     // ];
+
+    protected SystemActionService $systemActionService;
+
+    public function __construct(SystemActionService $systemActionService)
+    {
+        $this->systemActionService = $systemActionService;
+    }
 
     private const MOOD_RANGES = [
         'Negative' => ['min' => 0, 'max' => 44, 'color' => '#FF6666'],
@@ -43,6 +52,10 @@ class MoodController extends Controller
             'user_id' => auth()->id(),
         ]);
 
+        $this->systemActionService->logAction(SystemActionType::MOODS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($mood->load('moodRelation'), 201);
     }
 
@@ -54,6 +67,11 @@ class MoodController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 403);
             }
             $mood->delete();
+
+            $this->systemActionService->logAction(SystemActionType::MOODS, [
+                'user_id' => auth()->id()
+            ]);
+
             return response()->json(null, 204);
         } catch(\Exception $e){
             return response()->json(['error' => 'Mood not found'], 404);
@@ -71,6 +89,10 @@ class MoodController extends Controller
 
         $momentaryMoods = $moods->where('type', 'momentary')->values();
 
+        $this->systemActionService->logAction(SystemActionType::MOODS, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json([
             "daily" => $moods->where('type', 'daily')->first(),
             "momentary" => $momentaryMoods,
@@ -80,6 +102,10 @@ class MoodController extends Controller
     public function getMoodInfo()
     {
         $relations = MoodRelation::all();
+
+        $this->systemActionService->logAction(SystemActionType::MOODS, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json([
             'relations' => $relations,
@@ -121,6 +147,10 @@ class MoodController extends Controller
                 ];
             }
         }
+
+        $this->systemActionService->logAction(SystemActionType::MOODS, [
+            'user_id' => auth()->id()
+        ]);
 
         return $result;
     }
@@ -179,6 +209,10 @@ class MoodController extends Controller
 
         $positiveDiff = round($currentWeekPositivePercentage - $previousWeekPositivePercentage, 0);
         $negativeDiff = round($currentWeekNegativePercentage - $previousWeekNegativePercentage, 0);
+
+        $this->systemActionService->logAction(SystemActionType::MOODS, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json([
             'byDays' => $byDays,
@@ -270,6 +304,10 @@ class MoodController extends Controller
 
         $positiveDiff = round($currentMonthPositivePercentage - $previousMonthPositivePercentage, 0);
         $negativeDiff = round($currentMonthNegativePercentage - $previousMonthNegativePercentage, 0);
+
+        $this->systemActionService->logAction(SystemActionType::MOODS, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json([
             'byDays' => $byDays,
