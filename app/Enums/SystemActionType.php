@@ -17,6 +17,7 @@ class SystemActionType
     const SUBSCRIPTION_CANCELLED = 'subscription_cancelled';
     const TICKET_RESOLVED = 'ticket_resolved';
     const TICKET_CREATED = 'ticket_created';
+    const GOALS = 'goals';
 
     private $value;
 
