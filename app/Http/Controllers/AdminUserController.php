@@ -2,12 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
+use App\Models\SystemAction;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AdminUserController extends Controller
 {
+    public function engagement(Request $request) {
+        $interest = [
+            SystemActionType::GOALS_INTERACTION,
+            SystemActionType::MOODS_INTERACTION,
+            SystemActionType::HOMEWORKS_INTERACTION,
+            SystemActionType::SYMPTOMPS_INTERACTION
+        ];
+
+        $today = Carbon::now();
+
+        $currMonthStart = $today->startOfMonth();
+        $currMonthEnd = $today->endOfMonth();
+
+        $prevMonthStart = $today->subMonth()->startOfMonth();
+        $prevMonthEnd = $today->subMonth()->endOfMonth();
+    }
+
     public function users(Request $request) {
 
         $validated = $request->validate([
