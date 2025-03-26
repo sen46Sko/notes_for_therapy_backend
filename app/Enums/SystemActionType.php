@@ -13,7 +13,8 @@ class SystemActionType
     const USER_ACCOUNT_DELETED = 'user_account_deleted';
     const REPORT_CREATED = 'report_created';
     const TRIAL_STARTED = 'trial_started';
-    const SUBSCRIPTION = 'subscription';
+    const SUBSCRIPTION_MONTHLY = 'subscription_monthly';
+    const SUBSCRIPTION_YEARLY = 'subscription_yearly';
     const SUBSCRIPTION_CANCELLED = 'subscription_cancelled';
     const TICKET_RESOLVED = 'ticket_resolved';
     const TICKET_CREATED = 'ticket_created';

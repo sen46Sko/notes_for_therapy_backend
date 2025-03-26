@@ -202,10 +202,21 @@ class StripeControllerV2 extends Controller
     //   'stripe_version' => '2022-08-01',
     // ]);
 
-    $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
-      'user_id' => $user->id, 
-      'plan' => $plan->reccuring->interval
-    ]);
+    if($plan->recurring->interval === "month") {
+      $this->systemActionService->logAction(
+        SystemActionType::SUBSCRIPTION_MONTHLY,
+        [
+        'user_id' => $user->id,
+      ]);
+    }
+    
+    if($plan->recurring->interval === "year") {
+      $this->systemActionService->logAction(
+        SystemActionType::SUBSCRIPTION_YEARLY, 
+        [
+        'user_id' => $user->id,
+      ]);
+    }
 
     return response()->json([
       'customer' => $customer->id,

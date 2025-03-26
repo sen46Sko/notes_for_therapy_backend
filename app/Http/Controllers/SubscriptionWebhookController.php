@@ -365,16 +365,22 @@ class SubscriptionWebhookController extends Controller
 
             if($subscription->provider_subscription_id === "notes_monthly_1") {
                 $plan = "month";
+                $systemActionService = new SystemActionService();
+                $systemActionService->logAction(SystemActionType::SUBSCRIPTION_MONTHLY, [
+                    'user_id' => $user->id, 
+                ]);
             }
             if($subscription->provider_subscription_id === "notes_yearly_1") {
                 $plan = "year";
+                $systemActionService = new SystemActionService();
+                $systemActionService->logAction(SystemActionType::SUBSCRIPTION_YEARLY, [
+                    'user_id' => $user->id, 
+                ]);
             }
 
-            $systemActionService = new SystemActionService();
-            $systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
-                'user_id' => $user->id, 
-                'plan' => $plan
-            ]);
+
+            
+           
 
             return response()->json(['message' => 'Subscription updated successfully']);
 
