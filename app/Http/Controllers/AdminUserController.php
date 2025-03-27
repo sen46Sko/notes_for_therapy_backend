@@ -5,27 +5,143 @@ namespace App\Http\Controllers;
 use App\Enums\SystemActionType;
 use App\Models\SystemAction;
 use App\Models\User;
+use App\Services\SystemActionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class AdminUserController extends Controller
 {
+    protected SystemActionService $systemActionService;
+
+    public function __construct(SystemActionService $systemActionService)
+    {
+        $this->systemActionService = $systemActionService;
+    }
+
+    const WEEKS_IN_MONTH = 5;
+    const MONTHS_IN_YEAR = 12;
+
     public function engagement(Request $request) {
         $interest = [
             SystemActionType::GOALS_INTERACTION,
-            SystemActionType::MOODS_INTERACTION,
             SystemActionType::HOMEWORKS_INTERACTION,
+            SystemActionType::MOODS_INTERACTION,
+            SystemActionType::NOTES_INTERACTION,
             SystemActionType::SYMPTOMPS_INTERACTION
         ];
 
         $today = Carbon::now();
 
-        $currMonthStart = $today->startOfMonth();
-        $currMonthEnd = $today->endOfMonth();
+        $currMonthStart = $today->copy()->startOfMonth();
+        $currMonthEnd = $today->copy()->endOfMonth();
 
-        $prevMonthStart = $today->subMonth()->startOfMonth();
-        $prevMonthEnd = $today->subMonth()->endOfMonth();
+        $currYearStart = $today->copy()->startOfYear();
+        $currYearEnd = $today->copy()->endOfYear();
+
+        $monthlyStats = SystemAction::selectRaw('
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS goals,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS homeworks,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS moods,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS notes,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS symptoms
+        ', $interest)
+            ->whereBetween('created_at', [$currMonthStart, $currMonthEnd])
+            ->first();
+
+        $yearlyStats = SystemAction::selectRaw('
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS goals,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS homeworks,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS moods,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS notes,
+            COUNT(CASE WHEN action_type = ? THEN 1 END) AS symptoms
+        ', $interest)
+        ->whereBetween('created_at', [$currYearStart, $currYearEnd])
+        ->first();
+
+        $weeklyGoals = [];
+        $weeklyHomeworks = [];
+        $weeklyMoods = [];
+        $weeklyNotes = [];
+        $weeklySymptomps = [];
+
+        // Gather weekly stats for charts
+        for ($i = 0; $i < self::WEEKS_IN_MONTH || $currMonthStart <= $currMonthEnd; $i++, $currMonthStart->addWeek()) { 
+            $weekStart = $currMonthStart->copy()->startOfWeek();
+            $weekEnd = $currMonthStart->copy()->endOfWeek();
+
+            $weekEnd = min($weekEnd, $currMonthEnd);
+
+            $weeklyStats = SystemAction::selectRaw('
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS goals,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS homeworks,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS moods,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS notes,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS symptoms
+            ', $interest)
+            ->whereBetween('created_at', [$weekStart, $weekEnd])
+            ->first();
+
+            $weeklyGoals[] = $weeklyStats->goals ?? 0;
+            $weeklyHomeworks[] = $weeklyStats->homeworks ?? 0;
+            $weeklyMoods[] = $weeklyStats->moods ?? 0;
+            $weeklyNotes[] = $weeklyStats->notes ?? 0;
+            $weeklySymptomps[] = $weeklyStats->symptoms ?? 0;
+        }
+
+        $monthlyGoals = [];
+        $monthlyHomeworks = [];
+        $monthlyMoods = [];
+        $monthlyNotes = [];
+        $monthlySymptomps = [];
+        // Gather monthly stats for charts
+        for($i = 0; $i < self::MONTHS_IN_YEAR || $currYearStart <= $currYearEnd; $i++, $currYearStart->addMonth()) {
+            $monthStart = $currYearStart->copy()->startOfMonth();
+            $monthEnd = $currYearStart->copy()->endOfMonth();
+
+            $monthEnd = min($monthEnd, $currYearEnd);
+
+            $monthlyStats = SystemAction::selectRaw('
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS goals,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS homeworks,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS moods,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS notes,
+                COUNT(CASE WHEN action_type = ? THEN 1 END) AS symptoms
+            ', $interest)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->first();
+
+            $monthlyGoals[]     = $monthlyStats->goals ?? 0;
+            $monthlyHomeworks[] = $monthlyStats->homeworks ?? 0;
+            $monthlyMoods[]     = $monthlyStats->moods ?? 0;
+            $monthlyNotes[]     = $monthlyStats->notes ?? 0;
+            $monthlySymptomps[] = $monthlyStats->symptoms ?? 0;
+        }
+
+        $result = [
+            'stats' => [
+                'monthly' => $monthlyStatsQuery, 
+                'yearly' => $yearlyStatsQuery
+            ],
+            'chartData' => [
+                'monthly' => [
+                    'goals' => $weeklyGoals,
+                    'homeworks' => $weeklyHomeworks,
+                    'moods' => $weeklyMoods,
+                    'notes' => $weeklyNotes,
+                    'symptomps' => $weeklySymptomps
+                ],
+                'yearly' => [
+                    'goals' => $monthlyGoals,
+                    'homeworks' => $monthlyHomeworks,
+                    'moods' => $monthlyMoods,
+                    'notes' => $monthlyNotes,
+                    'symptomps' => $monthlySymptomps
+                ]
+            ]
+        ];
+
+        return response()->json($result);
     }
 
     public function users(Request $request) {
