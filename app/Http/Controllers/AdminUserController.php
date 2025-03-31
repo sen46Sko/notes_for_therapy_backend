@@ -22,6 +22,146 @@ class AdminUserController extends Controller
     const WEEKS_IN_MONTH = 5;
     const MONTHS_IN_YEAR = 12;
 
+    public function stats(Request $request) { 
+
+        $today = Carbon::now();
+
+        $currMonth = $today->copy()->startOfMonth();
+        $currMonthEnd = $currMonth->copy()->endOfMonth();
+        $prevMonth = $today->copy()->subMonth()->startOfMonth();
+        $prevMonthEnd = $prevMonth->copy()->endOfMonth();
+
+        $currYear = $today->copy()->startOfYear();
+        $currYearEnd = $currYear->copy()->endOfYear();
+        $prevYear = $today->copy()->subYear()->startOfYear();
+        $prevYearEnd = $prevYear->copy()->endOfYear();
+
+
+        $stats = DB::select('
+            SELECT
+                (SELECT COUNT(id) FROM users) as curr_month_total_users,
+                (SELECT COUNT(id) FROM users WHERE created_at <= ?) as prev_month_total_users,
+                (SELECT COUNT(u.id) FROM users u WHERE created_at >= ? ) as curr_month_signups,
+                (SELECT COUNT(u.id) FROM users u WHERE created_at BETWEEN ? AND ?) as prev_month_signups,
+                (
+                 SELECT COUNT(u.id) FROM users u JOIN subscriptions subs ON subs.user_id = u.id 
+                 WHERE u.created_at >= ? AND subs.status IN ("inactive", "expired", "canceled")
+                ) as curr_month_rate,
+                (
+                 SELECT COUNT(u.id) FROM users u JOIN subscriptions subs ON subs.user_id = u.id
+                 WHERE u.created_at BETWEEN ? AND ? AND subs.status IN ("inactive", "expired", "canceled")
+                ) as prev_month_rate,
+                (
+                 SELECT 
+                     COALESCE(
+                         (COUNT(DISTINCT CASE WHEN subs.status IN ("expired", "canceled") AND subs.updated_at BETWEEN ? AND ? THEN subs.user_id END) * 100.0) /
+                         NULLIF(COUNT(DISTINCT CASE WHEN subs.created_at < ? THEN subs.user_id END), 0),
+                         0
+                     ) AS churn_rate
+                 FROM subscriptions subs
+                ) as curr_month_churn,
+                (
+                 SELECT
+                     COALESCE(
+                         (COUNT(DISTINCT CASE WHEN subs.status IN ("expired", "canceled") AND subs.updated_at BETWEEN ? AND ? THEN subs.user_id END) * 100.0) /
+                         NULLIF(COUNT(DISTINCT CASE WHEN subs.created_at < ? THEN subs.user_id END), 0),
+                         0
+                     ) AS churn_rate
+                 FROM subscriptions subs
+                ) as prev_month_churn,
+                (SELECT COUNT(id) FROM users) as curr_year_total_users,
+                (SELECT COUNT(id) FROM users WHERE created_at <= ?) as prev_year_total_users,
+                (
+                 SELECT COUNT(u.id) FROM users u JOIN subscriptions subs ON subs.user_id = u.id 
+                 WHERE u.created_at >= ? AND subs.status IN ("inactive", "expired", "canceled")
+                ) as curr_year_signups,
+                (
+                 SELECT COUNT(u.id) FROM users u WHERE created_at BETWEEN ? AND ?
+                ) as prev_year_signups,
+                (
+                 SELECT COUNT(u.id) FROM users u JOIN subscriptions subs ON subs.user_id = u.id 
+                 WHERE u.created_at >= ? AND subs.status IN ("inactive", "expired", "canceled")
+                ) as curr_year_rate,
+                (
+                 SELECT COUNT(u.id) FROM users u JOIN subscriptions subs ON subs.user_id = u.id
+                 WHERE u.created_at BETWEEN ? AND ? AND subs.status IN ("inactive", "expired", "canceled")
+                ) as prev_year_rate,
+                (
+                 SELECT 
+                      COALESCE(
+                          (COUNT(DISTINCT CASE WHEN subs.status IN ("expired", "canceled") AND subs.updated_at BETWEEN ? AND ? THEN subs.user_id END) * 100.0) /
+                          NULLIF(COUNT(DISTINCT CASE WHEN subs.created_at < ? THEN subs.user_id END), 0),
+                          0
+                      ) AS churn_rate
+                 FROM subscriptions subs
+                ) as curr_year_churn,
+                (
+                 SELECT
+                     COALESCE(
+                         (COUNT(DISTINCT CASE WHEN subs.status IN ("expired", "canceled") AND subs.updated_at BETWEEN ? AND ? THEN subs.user_id END) * 100.0) /
+                         NULLIF(COUNT(DISTINCT CASE WHEN subs.created_at < ? THEN subs.user_id END), 0),
+                         0
+                     ) AS churn_rate
+                 FROM subscriptions subs
+                ) as prev_year_churn 
+        ', [
+            $prevMonth, // prev_month_total_users
+            $currMonth, // curr_month_signups
+            $prevMonth, $prevMonthEnd, // prev_month_signups
+            $currMonth, // curr_month_rate
+            $prevMonth, $prevMonthEnd, // prev_month_rate
+            $currMonth, $currMonthEnd, $currMonth, // curr_month_churn
+            $prevMonth, $prevMonthEnd, $prevMonth, // prev_month_churn
+            $currYear, // prev_year_total_users
+            $currYear, // curr_year_signups
+            $prevYear, $prevYearEnd, // prev_year_signups
+            $currYear, // curr_year_rate
+            $prevYear, $prevYearEnd, // prev_year_rate
+            $currYear, $currYearEnd, $currYear, // curr_year_churn
+            $prevYear, $prevYearEnd, $prevYear, // prev_year_churn
+        ]);
+
+        $result = [
+            'monthly' => [
+                'total_users' => [
+                    'curr' => $stats[0]->curr_month_total_users ?? 0,
+                    'prev' => $stats[0]->prev_month_total_users ?? 0, 
+                ],
+                'signups' => [
+                    'curr' => $stats[0]->curr_month_signups ?? 0,
+                    'prev' => $stats[0]->prev_month_signups ?? 0,
+                ],
+                'rate' => [
+                    'curr' => $stats[0]->curr_month_rate ?? 0,
+                    'prev' => $stats[0]->prev_month_rate ?? 0,
+                ],
+                'churn' => [
+                    'curr' => $stats[0]->curr_month_churn ?? 0,
+                    'prev' => $stats[0]->prev_month_churn ?? 0,
+                ]
+            ],
+            'yearly' => [
+                'total_users' => [
+                    'curr' => $stats[0]->curr_year_total_users ?? 0,
+                    'prev' => $stats[0]->prev_year_total_users ?? 0, 
+                ],
+                'signups' => [
+                    'curr' => $stats[0]->curr_year_signups ?? 0,
+                    'prev' => $stats[0]->prev_year_signups ?? 0,
+                ],
+                'rate' => [
+                    'curr' => $stats[0]->curr_year_rate ?? 0,
+                    'prev' => $stats[0]->prev_year_rate ?? 0,
+                ],
+                'churn' => [
+                    'curr' => $stats[0]->curr_year_churn ?? 0,
+                    'prev' => $stats[0]->prev_year_churn ?? 0,
+                ]
+            ]
+        ];
+
+        return response()->json($result);
+    }
     public function engagement(Request $request) {
         $interest = [
             SystemActionType::GOALS_INTERACTION,
@@ -120,8 +260,8 @@ class AdminUserController extends Controller
 
         $result = [
             'stats' => [
-                'monthly' => $monthlyStatsQuery, 
-                'yearly' => $yearlyStatsQuery
+                'monthly' => $monthlyStats, 
+                'yearly' => $yearlyStats
             ],
             'chartData' => [
                 'monthly' => [
