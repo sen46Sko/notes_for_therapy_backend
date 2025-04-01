@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\SystemActionType;
+use App\Models\Subscription;
 use App\Models\SystemAction;
 use App\Models\User;
 use App\Services\SystemActionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Validator;
 
 class AdminUserController extends Controller
 {
@@ -21,6 +23,59 @@ class AdminUserController extends Controller
 
     const WEEKS_IN_MONTH = 5;
     const MONTHS_IN_YEAR = 12;
+
+    public function userDetails(Request $request, $id) {
+
+        $validator = Validator::make(['id' => $id], [
+            'id' => 'required|integer'
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user = User::select(['id', 'name', 'email', 'created_at', 'birthdate', 'gender'])
+            ->where('id', $id)
+            ->first();
+
+        $userSubscription = Subscription::select(['status', 'provider_subscription_id'])
+            ->where('user_id', $id)
+            ->first();    
+
+        $lastActivity = SystemAction::select('action_type')
+            ->where('payload->user_id', $id)
+            ->latest()
+            ->first();
+
+        $mostUsedAction = SystemAction::select('action_type', DB::raw('COUNT(*) as count'))
+            ->whereIn('action_type', [
+                SystemActionType::GOALS_INTERACTION, 
+                SystemActionType::MOODS_INTERACTION,
+                SystemActionType::NOTES_INTERACTION,
+                SystemActionType::HOMEWORKS_INTERACTION,
+                SystemActionType::SYMPTOMPS_INTERACTION
+            ])
+            ->groupBy('action_type')
+            ->orderBy('count', 'desc')
+            ->first();
+
+        $result = [
+            'id' => $user->id,
+            'avatar' => "",
+            'full_name' => $user->name,
+            'gender' => $user->gender ?? null,
+            'email' => $user->email,
+            'birthday' => $user->birthdate ?? null,
+            'plan' => $userSubscription ? $userSubscription->provider_subscription_id : null,
+            'subscription_status' => $userSubscription ? $userSubscription->status : null,
+            'last_activity' => $lastActivity ? $lastActivity->action_type : null,
+            'created_at' => $user->created_at,
+            'most_used_feature' => $mostUsedAction ? $mostUsedAction->action_type : null,
+            'account_status' => ""
+        ];
+
+        return response()->json($result);
+    }
 
     public function stats(Request $request) { 
 
