@@ -34,7 +34,7 @@ class AdminUserController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::select(['id', 'name', 'email', 'created_at', 'birthdate', 'gender'])
+        $user = User::select(['id', 'image', 'name', 'email', 'created_at', 'birthdate', 'gender', 'account_status'])
             ->where('id', $id)
             ->first();
 
@@ -61,17 +61,18 @@ class AdminUserController extends Controller
 
         $result = [
             'id' => $user->id,
-            'avatar' => "",
+            'avatar' => $user->image ?? null,
             'full_name' => $user->name,
             'gender' => $user->gender ?? null,
             'email' => $user->email,
-            'birthday' => $user->birthdate ?? null,
+            'birthdate' => $user->birthdate ?? null,
             'plan' => $userSubscription ? $userSubscription->provider_subscription_id : null,
             'subscription_status' => $userSubscription ? $userSubscription->status : null,
             'last_activity' => $lastActivity ? $lastActivity->action_type : null,
             'created_at' => $user->created_at,
             'most_used_feature' => $mostUsedAction ? $mostUsedAction->action_type : null,
-            'account_status' => ""
+            'account_status' => $user->account_status,
+            // 'reports' => "",
         ];
 
         return response()->json($result);
