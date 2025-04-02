@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\Note;
 use App\Models\NoteQuestion;
 use App\Services\SystemActionService;
