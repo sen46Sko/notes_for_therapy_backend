@@ -60,6 +60,7 @@ Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
     Route::get('/admin/users', [AdminUserController::class, 'users']);
     Route::get('/admin/analytics/user-engagement', [AdminUserController::class, 'engagement']);
     Route::get('/admin/analytics/stats', [AdminUserController::class, 'stats']);
+    Route::get('/admin/users/{id}', [AdminUserController::class, 'userDetails']);
 
     // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
