@@ -24,6 +24,96 @@ class AdminUserController extends Controller
     const WEEKS_IN_MONTH = 5;
     const MONTHS_IN_YEAR = 12;
 
+    public function retention(Request $request) {
+
+        $today = Carbon::now();
+
+        $retention = User::leftJoin('subscriptions', 'subscriptions.user_id', '=', 'users.id')
+        ->selectRaw('
+        -- monthly retentions
+            COUNT(CASE WHEN users.created_at >= ? THEN 1 END) AS curr_month_signups,
+            COUNT(CASE WHEN users.created_at BETWEEN ? AND ? THEN 1 END) AS prev_month_signups,
+            COUNT(CASE WHEN users.trial_end BETWEEN ? AND ? THEN 1 END) AS curr_month_trials,
+            COUNT(CASE WHEN users.trial_end BETWEEN ? AND ? THEN 1 END) AS prev_month_trials,
+            COUNT(CASE WHEN subscriptions.status = ? THEN 1 END) AS curr_month_subs,
+            COUNT(CASE WHEN subscriptions.expiration_date <= ? THEN 1 END) AS prev_month_subs,
+            ((COUNT(CASE WHEN subscriptions.status = ? THEN 1 END) / NULLIF(COUNT(users.id), 0)) * 100) AS curr_month_retention,
+            ((COUNT(CASE WHEN subscriptions.expiration_date <= ? THEN 1 END) / NULLIF(COUNT(CASE WHEN users.created_at IS NOT NULL THEN 1 END), 0)) * 100) AS prev_month_retention,
+        
+        -- yearly retentions
+            COUNT(CASE WHEN users.created_at >= ? THEN 1 END) AS curr_year_signups,
+            COUNT(CASE WHEN users.created_at BETWEEN ? AND ? THEN 1 END) AS prev_year_signups,
+            COUNT(CASE WHEN users.trial_end BETWEEN ? AND ? THEN 1 END) AS curr_year_trials,
+            COUNT(CASE WHEN users.trial_end BETWEEN ? AND ? THEN 1 END) AS prev_year_trials,
+            COUNT(CASE WHEN subscriptions.status = ? THEN 1 END) AS curr_year_subs,
+            COUNT(CASE WHEN subscriptions.expiration_date <= ? THEN 1 END) AS prev_year_subs,
+            ((COUNT(CASE WHEN subscriptions.status = ? THEN 1 END) / NULLIF(COUNT(users.id), 0)) * 100) AS curr_year_retention,
+            ((COUNT(CASE WHEN subscriptions.expiration_date <= ? THEN 1 END) / NULLIF(COUNT(CASE WHEN users.created_at IS NOT NULL THEN 1 END), 0)) * 100) AS prev_year_retention
+        ', [
+        // monthly retention bindings
+            $today->copy()->startOfMonth(),
+            $today->copy()->subMonth()->startOfMonth(), $today->copy()->subMonth()->endOfMonth(),
+            $today->copy()->startOfMonth(), $today->copy()->endOfMonth(),
+            $today->copy()->subMonth()->startOfMonth(), $today->copy()->subMonth()->endOfMonth(),
+            "active",
+            $today->copy()->subMonth()->endOfMonth(),   
+            "active",
+            $today->copy()->subMonth()->endOfMonth(),
+        // yearly retention bindings
+            $today->copy()->startOfYear(),
+            $today->copy()->subYear()->startOfYear(), $today->copy()->subYear()->endOfYear(),
+            $today->copy()->startOfYear(), $today->copy()->endOfYear(),
+            $today->copy()->subYear()->startOfYear(), $today->copy()->subYear()->endOfYear(),
+            "active",
+            $today->copy()->subYear()->endOfYear(),   
+            "active",
+            $today->copy()->subYear()->endOfYear(),
+        ])
+        ->first();
+
+
+        $result = [
+            'monthly' => [
+                'signups' => [
+                    'curr' => $retention->curr_month_signups,
+                    'prev' => $retention->prev_month_signups,
+                ],
+                'trials' => [
+                    'curr' => $retention->curr_month_trials,
+                    'prev' => $retention->prev_month_trials,
+                ],
+                'subscriptions' => [
+                    'curr' => $retention->curr_month_subs,
+                    'prev' => $retention->prev_month_subs,
+                ],
+                'retention' => [
+                    'curr' => $retention->curr_month_retention,
+                    'prev' => $retention->prev_month_retention,
+                ],
+            ],
+            'yearly' => [
+                'signups' => [
+                    'curr' => $retention->curr_year_signups,
+                    'prev' => $retention->prev_year_signups,
+                ],
+                'trials' => [
+                    'curr' => $retention->curr_year_trials,
+                    'prev' => $retention->prev_year_trials,
+                ],
+                'subscriptions' => [
+                    'curr' => $retention->curr_year_subs,
+                    'prev' => $retention->prev_year_subs,
+                ],
+                'retention' => [
+                    'curr' => $retention->curr_year_retention,
+                    'prev' => $retention->prev_year_retention,
+                ],
+            ],
+        ];
+
+        return response()->json($result);
+    }
+
     public function userDetails(Request $request, $id) {
 
         $validator = Validator::make(['id' => $id], [
