@@ -19,7 +19,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+    'http://localhost:5173', 
+    'https://empathy-dash.vercel.app',
+    'https://admin-panel-nine-indol.vercel.app'
+],
 
     'allowed_origins_patterns' => [],
 
