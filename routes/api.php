@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminAuthController;
 use App\Http\Controllers\AdminStatsController;
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MoodController;
 use App\Http\Controllers\MoodRelationController;
@@ -56,6 +57,7 @@ Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
     // Stats
     Route::get('/admin/stats', [AdminStatsController::class, 'stats']);
     Route::get('/admin/user-activity', [AdminStatsController::class, 'userActivity']);
+    Route::get('/admin/users', [AdminUserController::class, 'users']);
 
     // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
