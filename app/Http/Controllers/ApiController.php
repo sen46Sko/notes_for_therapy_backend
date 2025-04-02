@@ -105,6 +105,12 @@ class ApiController extends Controller
             'email' => $user->email,
         ]);
 
+        $this->systemActionService->logAction(SystemActionType::TRIAL_STARTED, [
+            'user_id' => $user->id, 
+            'name' => $user->name, 
+            'email' => $user->email,
+        ]);
+
         return $this->authenticate($request);
     }
 
