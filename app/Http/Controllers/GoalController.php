@@ -2,14 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\Goal;
 use App\Models\Notification;
+use App\Services\SystemActionService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 
 class GoalController extends Controller
 {
+    protected SystemActionService $systemActionService;
+
+    public function __construct(SystemActionService $systemActionService)
+    {
+        $this->systemActionService = $systemActionService;
+    }
     private function createOrUpdateNotification(Goal $goal, Request $request)
     {
         $notification = Notification::updateOrCreate(
@@ -56,6 +64,11 @@ class GoalController extends Controller
                 ->with('notification')
                 ->get();
         }
+
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($goals);
     }
 
@@ -94,12 +107,21 @@ class GoalController extends Controller
 
         $goal->save();
 
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($goal, 201);
     }
 
     public function show(Request $request, $id)
     {
         $goal = Goal::where('user_id', auth()->id())->findOrFail($id);
+        
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($goal);
     }
 
@@ -150,6 +172,10 @@ class GoalController extends Controller
 
         $goal->save();
 
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json($goal);
     }
 
@@ -159,6 +185,10 @@ class GoalController extends Controller
 
         $this->removeNotification($goal);
         $goal->delete();
+
+        $this->systemActionService->logAction(SystemActionType::GOALS_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json(null, 204);
     }
