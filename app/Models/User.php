@@ -50,6 +50,8 @@ class User extends Authenticatable implements JWTSubject
         // New columns
         'gender',
         'age',
+        'deactivate_to',
+        'account_status'
 
     ];
 
@@ -72,6 +74,7 @@ class User extends Authenticatable implements JWTSubject
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'deactivated_to' => 'datetime'
     ];
 
     /**
@@ -191,5 +194,10 @@ class User extends Authenticatable implements JWTSubject
         }
 
         return $this->subscription ? $this->subscription->status : 'inactive';
+    }
+
+    public function isDeactivated()
+    {
+        return $this->deactivate_to && now()->lt($this->deactivate_to);
     }
 }

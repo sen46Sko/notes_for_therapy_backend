@@ -42,7 +42,7 @@ class AdminUserController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'User deactivated successfully until ' . $user->deactivate_to->format('Y-m-d H:i:s'),
+            'message' => 'User deactivated successfully until ' . $user->deactivate_to,
             'user' => $user
         ]);
     }
