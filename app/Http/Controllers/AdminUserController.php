@@ -39,6 +39,7 @@ class AdminUserController extends Controller
         $user = User::findOrFail($request->user_id);
         $user->update([
             'deactivate_to' => $request->date,
+            'account_status' => "inactive",
         ]);
 
         return response()->json([
