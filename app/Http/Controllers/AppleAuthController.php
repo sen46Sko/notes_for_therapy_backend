@@ -48,6 +48,14 @@ class AppleAuthController extends Controller
                 ], 404);
             }
 
+            if ($user->isDeactivated()) {
+                return response()->json([
+                    'message' => 'Your account is deactivated until ' . $user->deactivate_to
+                ], 403);
+            } else {
+                User::where('id', $user->id)->update(['account_status' => 'active']);
+            }
+
             if ($user->is_google_signup == 0) {
                 return response()->json([
                     'success' => false,
