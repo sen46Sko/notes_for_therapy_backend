@@ -30,29 +30,29 @@ class AdminStatsController extends Controller
  
         $subs = SystemAction::selectRaw('
             -- Monthly Stats
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_monthly
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_monthly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_monthly,
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_monthly,
 
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_yearly
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_yearly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_yearly,
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_yearly,
 
-            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_total_subs
-            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_total_subs
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_total_subs,
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_total_subs,
 
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_cancelled_subs
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_cancelled_subs
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_cancelled_subs,
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_cancelled_subs,
 
             -- Yearly Stats
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_monthly
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_monthly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_monthly,
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_monthly,
 
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_yearly
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_yearly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_yearly,
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_yearly,
 
-            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_total_subs
-            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_total_subs
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_total_subs,
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_total_subs,
 
-            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_cancelled_subs
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_cancelled_subs,
             COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_cancelled_subs
         ', [
             // Monthly
