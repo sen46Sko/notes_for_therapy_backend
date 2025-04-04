@@ -20,7 +20,7 @@ return [
     'allowed_methods' => ['*'],
 
     // 'allowed_origins' => ['*'],
-    'allowed_origins' => ['https://empathy-dash.vercel.app', 'http://localhost:3001'],
+    'allowed_origins' => ['https://empathy-dash.vercel.app', 'http://localhost:3001',  'https://admin-panel-nine-indol.vercel.app/'],
 
     'allowed_origins_patterns' => [],
 
