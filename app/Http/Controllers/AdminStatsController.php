@@ -11,7 +11,118 @@ use Illuminate\Http\Request;
 use Str;
 
 class AdminStatsController extends Controller
-{
+{   
+    public function subscriptions(Request $request) {
+ 
+        $today = Carbon::now();
+
+        $currMonthStart = $today->copy()->startOfMonth();
+        $currMonthEnd = $today->copy()->endOfMonth();
+
+        $prevMonthStart = $today->copy()->subMonth()->startOfMonth();
+        $prevMonthEnd = $today->copy()->subMonth()->endOfMonth();
+
+        $currYearStart = $today->copy()->startOfYear();
+        $currYearEnd = $today->copy()->endOfYear();
+
+        $prevYearStart = $today->copy()->subYear()->startOfYear();
+        $prevYearEnd = $today->copy()->subYear()->endOfYear();
+ 
+        $subs = SystemAction::selectRaw('
+            -- Monthly Stats
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_monthly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_monthly
+
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_yearly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_yearly
+
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_total_subs
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_total_subs
+
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_month_cancelled_subs
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_month_cancelled_subs
+
+            -- Yearly Stats
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_monthly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_monthly
+
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_yearly
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_yearly
+
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_total_subs
+            COUNT(CASE WHEN action_type IN (?, ?) AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_total_subs
+
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as curr_year_cancelled_subs
+            COUNT(CASE WHEN action_type = ? AND created_at BETWEEN ? AND ? THEN 1 END) as prev_year_cancelled_subs
+        ', [
+            // Monthly
+           SystemActionType::SUBSCRIPTION_MONTHLY, $currMonthStart, $currMonthEnd,
+           SystemActionType::SUBSCRIPTION_MONTHLY, $prevMonthStart, $prevMonthEnd,
+
+           SystemActionType::SUBSCRIPTION_YEARLY, $currMonthStart, $currMonthEnd,
+           SystemActionType::SUBSCRIPTION_YEARLY, $prevMonthStart, $prevMonthEnd,
+
+           SystemActionType::SUBSCRIPTION_MONTHLY, SystemActionType::SUBSCRIPTION_YEARLY, $currMonthStart, $currMonthEnd,
+           SystemActionType::SUBSCRIPTION_MONTHLY, SystemActionType::SUBSCRIPTION_YEARLY, $prevMonthStart, $prevMonthStart,
+
+           SystemActionType::SUBSCRIPTION_CANCELLED, $currMonthStart, $currMonthEnd,
+           SystemActionType::SUBSCRIPTION_CANCELLED, $prevMonthStart, $prevMonthEnd,
+
+           // Yearly Bindings
+           SystemActionType::SUBSCRIPTION_MONTHLY, $currYearStart, $currYearEnd,
+           SystemActionType::SUBSCRIPTION_MONTHLY, $prevYearStart, $prevYearEnd,
+
+           SystemActionType::SUBSCRIPTION_YEARLY, $currYearStart, $currYearEnd,
+           SystemActionType::SUBSCRIPTION_YEARLY, $prevYearStart, $prevYearEnd,
+
+           SystemActionType::SUBSCRIPTION_MONTHLY, SystemActionType::SUBSCRIPTION_YEARLY, $currYearStart, $currYearEnd,
+           SystemActionType::SUBSCRIPTION_MONTHLY, SystemActionType::SUBSCRIPTION_YEARLY, $prevYearStart, $prevYearEnd,
+
+           SystemActionType::SUBSCRIPTION_CANCELLED, $currYearStart, $currYearEnd,
+           SystemActionType::SUBSCRIPTION_CANCELLED, $prevYearStart, $prevYearEnd,
+        ])->first();
+
+        $result = [
+            'monthly' => [
+                'monthly_plan' => [
+                    'curr' => $subs->curr_month_monthly,
+                    'prev' => $subs->prev_month_monthly
+                ],
+                'yearly_plan' => [
+                    'curr' => $subs->curr_month_yearly,
+                    'prev' => $subs->prev_month_yearly
+                ],
+                'total_subs' => [
+                    'curr' => $subs->curr_month_total_subs,
+                    'prev' => $subs->prev_month_total_subs
+                ],
+                'cancelled_subs' => [
+                    'curr' => $subs->curr_month_cancelled_subs,
+                    'prev' => $subs->prev_month_cancelled_subs
+                ],                
+            ],
+            'yearly' => [
+                'monthly_plan' => [
+                    'curr' => $subs->curr_year_monthly,
+                    'prev' => $subs->prev_year_monthly
+                ],
+                'yearly_plan' => [
+                    'curr' => $subs->curr_year_yearly,
+                    'prev' => $subs->prev_year_yearly
+                ],
+                'total_subs' => [
+                    'curr' => $subs->curr_year_total_subs,
+                    'prev' => $subs->prev_year_total_subs
+                ],
+                'cancelled_subs' => [
+                    'curr' => $subs->curr_year_cancelled_subs,
+                    'prev' => $subs->prev_year_cancelled_subs
+                ], 
+            ]
+        ];
+
+        return response()->json($result);
+    }
     public function userActivity(Request $request) {
 
         $loginMethods = [
