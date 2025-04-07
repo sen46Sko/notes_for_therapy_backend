@@ -200,4 +200,17 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->deactivate_to && now()->lt($this->deactivate_to);
     }
+
+    public static function getActiveUser(string $user_id) {
+        $user = User::where('id', $user_id)->first();
+        
+        if (!$user || $user->isDeactivated()) {
+            return null;
+        }
+        
+        $user->account_status = 'active';
+        $user->save();
+        
+        return $user;
+    }
 }
