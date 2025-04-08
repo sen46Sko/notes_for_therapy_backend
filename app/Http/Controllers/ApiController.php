@@ -231,13 +231,11 @@ class ApiController extends Controller
         $user = Auth::user();
 
         // Check If account is disabled
-        $userEntry = User::where('id', $user->id)->first();
-        if ($userEntry->isDeactivated()) {
+        $activeUser = User::getActiveUser($user->id);
+        if(empty($activeUser)) {
             return response()->json([
-                'message' => 'Your account is deactivated until ' . $userEntry->deactivate_to
+                'message' => 'Your account is deactivated',
             ], 403);
-        } else {
-            User::where('id', $user->id)->update(['account_status' => 'active']);
         }
 
         // Check if 2FA is enabled for the user

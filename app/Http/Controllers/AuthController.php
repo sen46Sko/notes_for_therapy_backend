@@ -282,12 +282,12 @@ class AuthController extends Controller
 
             $user = User::where('email', $googleUser['email'])->first();
 
-            if ($user->isDeactivated()) {
+                    // Check If account is disabled
+            $activeUser = User::getActiveUser($user->id);
+            if(empty($activeUser)) {
                 return response()->json([
-                    'message' => 'Your account is deactivated until ' . $user->deactivate_to
+                    'message' => 'Your account is deactivated',
                 ], 403);
-            } else {
-                User::where('id', $user->id)->update(['account_status' => 'active']);
             }
 
             $is_signup = false;
