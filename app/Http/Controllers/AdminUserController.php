@@ -24,6 +24,30 @@ class AdminUserController extends Controller
     const WEEKS_IN_MONTH = 5;
     const MONTHS_IN_YEAR = 12;
 
+    public function deactivateUser(Request $request) {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'date' => 'required|date|after:now',
+        ]);
+
+        if ($request->user_id == auth()->id()) {
+            return response()->json([
+                'message' => 'You cannot deactivate your own account'
+            ], 403);
+        }
+
+        $user = User::findOrFail($request->user_id);
+        $user->update([
+            'deactivate_to' => $request->date,
+            'account_status' => "inactive",
+        ]);
+
+        return response()->json([
+            'message' => 'User deactivated successfully until ' . $user->deactivate_to,
+            'user' => $user
+        ]);
+    }
+
     public function retention(Request $request) {
 
         $today = Carbon::now();

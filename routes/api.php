@@ -62,6 +62,7 @@ Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
     Route::get('/admin/analytics/stats', [AdminUserController::class, 'stats']);
     Route::get('/admin/users/{id}', [AdminUserController::class, 'userDetails']);
     Route::get('/admin/analytics/retention', [AdminUserController::class, 'retention']);
+    Route::post('/admin/users/deactivate', [AdminUserController::class, 'deactivateUser']);
 
     // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class UpdateUsersTableAvatarAccountStatusColumns extends Migration
+class UpdateUsersDeactivateToColumn extends Migration
 {
     /**
      * Run the migrations.
@@ -14,8 +14,7 @@ class UpdateUsersTableAvatarAccountStatusColumns extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->enum('account_status', ['active', 'inactive'])->default('active');
-            
+            $table->date('deactivate_to')->nullable();
         });
     }
 
@@ -27,7 +26,7 @@ class UpdateUsersTableAvatarAccountStatusColumns extends Migration
     public function down()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['account_status']);
+            $table->dropColumn('deactivate_to');
         });
     }
 }

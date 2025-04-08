@@ -48,6 +48,14 @@ class AppleAuthController extends Controller
                 ], 404);
             }
 
+            // Check If account is disabled
+            $activeUser = User::getActiveUser($user->id);
+            if(empty($activeUser)) {
+                return response()->json([
+                    'message' => 'Your account is deactivated',
+                ], 403);
+            }
+
             if ($user->is_google_signup == 0) {
                 return response()->json([
                     'success' => false,
