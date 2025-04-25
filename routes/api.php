@@ -114,9 +114,9 @@ Route::post('auth/apple/sign-up', [AppleAuthController::class, 'signUp']);
 
 Route::get("auth/request_password_change", [AuthController::class, 'requestPasswordChange']);
 Route::get("auth/check_otp", [AuthController::class, 'checkOtp']);
+Route::post("auth/change_password", [AuthController::class, 'changePassword']);
 Route::group(['middleware' => ['jwt.verify']], function () {
     Route::get("auth/request_email_change", [AuthController::class, 'requestEmailChange']);
-    Route::post("auth/change_password", [AuthController::class, 'changePassword']);
     Route::post("auth/change_email", [AuthController::class, 'changeEmail']);
     Route::post("auth/change_password/authorized", [AuthController::class, 'changePasswordAuthorized']);
 
