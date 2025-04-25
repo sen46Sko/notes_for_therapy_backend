@@ -30,6 +30,8 @@ use App\Http\Controllers\UserActionController;
 use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
 use App\Http\Controllers\UserNotificationSettingController;
+use App\Http\Controllers\TicketController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -62,6 +64,18 @@ Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
     Route::post('/admin/update-admin-permission/{id}', [AdminAuthController::class, 'updateAdminPermission'])->middleware('check.permission:modify_permissions');
     Route::post('/admin/remove-admin', [AdminAuthController::class, 'removeAdmin'])->middleware('check.permission:modify_permissions');
     Route::post('/admin/deactivate-admin', [AdminAuthController::class, 'deactivateAdmin'])->middleware('check.permission:modify_permissions');
+
+    // 📌 Ticket system
+
+    Route::post('/admin/tickets/change-status/{id}', [TicketController::class, 'changeStatus']);
+    Route::post('/admin/tickets/change-note/{id}', [TicketController::class, 'changeNote']);
+    Route::post('/admin/tickets/message/{id}', [TicketController::class, 'adminSendMessage']);
+    Route::post('/problems/message/{id}', [TicketController::class, 'userSendMessage']);
+    Route::get('/admin/tickets/get-stats', [TicketController::class, 'getStats']);
+    Route::get('/admin/tickets', [TicketController::class, 'listTickets']);
+    Route::get('/admin/tickets/{id}', [TicketController::class, 'getTicketDetails']);
+
+
 });
 
 
