@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Problem;
 use App\Models\ProblemRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class ProblemController extends Controller
 {
@@ -16,6 +18,11 @@ class ProblemController extends Controller
 
 public function store(Request $request)
 {
+    \Log::info('Incoming request data:', [
+        'all_data' => $request->all(),
+        'bearer_token' => $request->bearerToken()
+    ]);
+
     $validatedData = $request->validate([
         'text' => 'required|string',
         'email' => 'required|email',
@@ -23,9 +30,9 @@ public function store(Request $request)
         'problem_description' => 'sometimes|nullable|string',
     ]);
 
-    $user = auth()->user();
+    $user = $request->user();
 
-    $validatedData['user_id'] = $user ? $user->id : null;
+    $validatedData['user_id'] = $user->id;
 
     $problemRequest = ProblemRequest::create($validatedData);
 

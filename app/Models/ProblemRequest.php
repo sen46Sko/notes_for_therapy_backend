@@ -16,7 +16,8 @@ class ProblemRequest extends Model
         'email',
         'status',
         'note',
-        'assign_to'
+        'assign_to',
+        'user_id',
     ];
 
     public function user()
