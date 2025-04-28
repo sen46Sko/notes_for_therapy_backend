@@ -14,17 +14,21 @@ class ProblemController extends Controller
         return response()->json($problems);
     }
 
-    public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'text' => 'required|string',
-            'email' => 'required|email',
-            'problem_id' => 'nullable|exists:problems,id',
-            'problem_description' => 'sometimes|nullable|string',
-        ]);
+public function store(Request $request)
+{
+    $validatedData = $request->validate([
+        'text' => 'required|string',
+        'email' => 'required|email',
+        'problem_id' => 'nullable|exists:problems,id',
+        'problem_description' => 'sometimes|nullable|string',
+    ]);
 
-        $problemRequest = ProblemRequest::create($validatedData);
+    $user = auth()->user();
 
-        return response()->json($problemRequest, 201);
-    }
+    $validatedData['user_id'] = $user ? $user->id : null;
+
+    $problemRequest = ProblemRequest::create($validatedData);
+
+    return response()->json($problemRequest, 201);
+}
 }
