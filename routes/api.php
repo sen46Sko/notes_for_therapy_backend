@@ -121,7 +121,6 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::get("auth/request_email_change", [AuthController::class, 'requestEmailChange']);
     Route::post("auth/change_email", [AuthController::class, 'changeEmail']);
     Route::post("auth/change_password/authorized", [AuthController::class, 'changePasswordAuthorized']);
-
     Route::post('auth/alert', [AuthController::class, 'unsuccessfulAuthAlert']);
 
 });
