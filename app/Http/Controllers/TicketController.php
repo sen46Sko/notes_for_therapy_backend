@@ -154,7 +154,7 @@ public function getStats()
 
 public function listTickets(Request $request)
 {
-    $query = ProblemRequest::with(['user:id,name,avatar', 'problem:id,name']);
+    $query = ProblemRequest::with(['user:id,name', 'problem:id,title']);
 
     if ($request->filled('status')) {
         $query->where('status', $request->status);
@@ -177,6 +177,7 @@ public function listTickets(Request $request)
 
     return response()->json($tickets);
 }
+
 public function getTicketDetails($id)
 {
     $ticket = ProblemRequest::with([
@@ -188,9 +189,25 @@ public function getTicketDetails($id)
 
     $user = $ticket->user;
 
-    // Получаем plan юзера из subscriptions
+    if (!$user) {
+        return response()->json([
+            'id' => $ticket->id,
+            'created_at' => $ticket->created_at,
+            'updated_at' => $ticket->updated_at,
+            'status' => $ticket->status,
+            'problem_description' => $ticket->problem_description,
+            'problem' => [
+                'name' => optional($ticket->problem)->title,
+            ],
+            'logs' => $ticket->logs,
+            'messages' => $ticket->messages,
+            'user' => null,
+        ]);
+    }
+
     $subscription = Subscription::where('user_id', $user->id)->latest()->first();
     $plan = null;
+
 
     if ($subscription) {
         if (str_starts_with($subscription->name, 'notes_monthly_')) {

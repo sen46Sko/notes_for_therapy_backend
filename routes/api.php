@@ -70,7 +70,6 @@ Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
     Route::post('/admin/tickets/change-status/{id}', [TicketController::class, 'changeStatus']);
     Route::post('/admin/tickets/change-note/{id}', [TicketController::class, 'changeNote']);
     Route::post('/admin/tickets/message/{id}', [TicketController::class, 'adminSendMessage']);
-    Route::post('/problems/message/{id}', [TicketController::class, 'userSendMessage']);
     Route::get('/admin/tickets/get-stats', [TicketController::class, 'getStats']);
     Route::get('/admin/tickets', [TicketController::class, 'listTickets']);
     Route::get('/admin/tickets/{id}', [TicketController::class, 'getTicketDetails']);
@@ -89,6 +88,9 @@ Route::get('', function () {
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::middleware('auth:sanctum')->post('/problems/message/{id}', [TicketController::class, 'userSendMessage']);
+
 //   Start Authentication
 Route::post('socialLogin', [ApiController::class, 'socialLogin']);
 Route::get('socialLogin', [ApiController::class, 'socialLogin']);
