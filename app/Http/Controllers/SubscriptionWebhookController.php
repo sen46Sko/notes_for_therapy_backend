@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\User;
 use App\Models\Subscription;
+use App\Services\SystemActionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -358,6 +360,27 @@ class SubscriptionWebhookController extends Controller
                 'status' => $status,
                 'provider' => $provider
             ]);
+
+            $plan = "";
+
+            if($subscription->provider_subscription_id === "notes_monthly_1") {
+                $plan = "month";
+                $systemActionService = new SystemActionService();
+                $systemActionService->logAction(SystemActionType::SUBSCRIPTION_MONTHLY, [
+                    'user_id' => $user->id, 
+                ]);
+            }
+            if($subscription->provider_subscription_id === "notes_yearly_1") {
+                $plan = "year";
+                $systemActionService = new SystemActionService();
+                $systemActionService->logAction(SystemActionType::SUBSCRIPTION_YEARLY, [
+                    'user_id' => $user->id, 
+                ]);
+            }
+
+
+            
+           
 
             return response()->json(['message' => 'Subscription updated successfully']);
 

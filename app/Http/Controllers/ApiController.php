@@ -105,6 +105,12 @@ class ApiController extends Controller
             'email' => $user->email,
         ]);
 
+        $this->systemActionService->logAction(SystemActionType::TRIAL_STARTED, [
+            'user_id' => $user->id, 
+            'name' => $user->name, 
+            'email' => $user->email,
+        ]);
+
         return $this->authenticate($request);
     }
 
@@ -223,6 +229,14 @@ class ApiController extends Controller
         }
 
         $user = Auth::user();
+
+        // Check If account is disabled
+        $activeUser = User::getActiveUser($user->id);
+        if(empty($activeUser)) {
+            return response()->json([
+                'message' => 'Your account is deactivated',
+            ], 403);
+        }
 
         // Check if 2FA is enabled for the user
         $twoFactorAuth = TwoFactorAuth::where('user_id', $user->id)->first();

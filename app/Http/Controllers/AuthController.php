@@ -282,6 +282,14 @@ class AuthController extends Controller
 
             $user = User::where('email', $googleUser['email'])->first();
 
+                    // Check If account is disabled
+            $activeUser = User::getActiveUser($user->id);
+            if(empty($activeUser)) {
+                return response()->json([
+                    'message' => 'Your account is deactivated',
+                ], 403);
+            }
+
             $is_signup = false;
 
             if (is_null($user)) {
@@ -305,7 +313,7 @@ class AuthController extends Controller
                     'user_id' => $user->id,
                     'email' => $user->email,
                     'name' => $user->name,
-                    'fcm_token' => $user->fcm_token
+                    'fcm_token' => $user->fcm_token,
                 ]);
             }
 

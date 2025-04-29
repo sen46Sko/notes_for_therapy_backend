@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
+use App\Services\SystemActionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Stripe;
@@ -11,15 +14,20 @@ use App\Models\Subscription;
 
 class StripeController extends Controller
 {
+
+    protected SystemActionService $systemActionService;
+
     /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
      */
-    public function __construct()
+    public function __construct(SystemActionService $systemActionService)
     {
         Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
         $this->stripe  = new \Stripe\StripeClient(env('STRIPE_SECRET'));
+
+        $this->systemActionService = $systemActionService;
     }
     public function index()
     {
@@ -401,6 +409,11 @@ class StripeController extends Controller
                 "message" => $e
             ]);
         }
+
+        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION, [
+            'user_id' => $user->id, 
+        ]);
+
         return response()->json([
             'status'=>True,
             "message" => 'Subscribed Successfully',
@@ -412,6 +425,9 @@ class StripeController extends Controller
     }
     public function cancel_subscription(){
         User::whereId(Auth::user()->id)->update(['subscription_status'=>0]);
+
+        $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, ['user_id' => Auth::user()->id]);
+        
         return response()->json([
             "status"=>true,
             'message'=>"Subscription Cancelled"
