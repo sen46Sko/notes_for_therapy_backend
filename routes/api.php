@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AdminAuthController;
+use App\Http\Controllers\AdminStatsController;
+use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\MoodController;
 use App\Http\Controllers\MoodRelationController;
@@ -54,6 +56,17 @@ Route::post('/admin/confirm-register', [AdminAuthController::class, 'confirmRegi
 
 // Admin protected routes
 Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
+    // Stats
+    Route::get('/admin/stats', [AdminStatsController::class, 'stats']);
+    Route::get('/admin/user-activity', [AdminStatsController::class, 'userActivity']);
+    Route::get('/admin/users', [AdminUserController::class, 'users']);
+    Route::get('/admin/analytics/user-engagement', [AdminUserController::class, 'engagement']);
+    Route::get('/admin/analytics/stats', [AdminUserController::class, 'stats']);
+    Route::get('/admin/users/{id}', [AdminUserController::class, 'userDetails']);
+    Route::get('/admin/analytics/retention', [AdminUserController::class, 'retention']);
+    Route::post('/admin/users/deactivate', [AdminUserController::class, 'deactivateUser']);
+    Route::get('/admin/analytics/subscriptions', [AdminStatsController::class, 'subscriptions']);
+
     // User actions
     Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
 

@@ -48,6 +48,14 @@ class AppleAuthController extends Controller
                 ], 404);
             }
 
+            // Check If account is disabled
+            $activeUser = User::getActiveUser($user->id);
+            if(empty($activeUser)) {
+                return response()->json([
+                    'message' => 'Your account is deactivated',
+                ], 403);
+            }
+
             if ($user->is_google_signup == 0) {
                 return response()->json([
                     'success' => false,
@@ -63,7 +71,7 @@ class AppleAuthController extends Controller
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'name' => $user->name,
-                'fcm_token' => $user->fcm_token
+                'fcm_token' => $user->fcm_token,
             ]);
 
             return $this->generateUserResponse($user);
@@ -111,7 +119,7 @@ class AppleAuthController extends Controller
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'name' => $user->name,
-                'fcm_token' => $user->fcm_token
+                'fcm_token' => $user->fcm_token,
             ]);
 
             return $this->generateUserResponse($user, true);

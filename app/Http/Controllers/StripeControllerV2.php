@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
+use App\Services\SystemActionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Stripe;
@@ -19,10 +22,14 @@ class StripeControllerV2 extends Controller
 
   private \Stripe\StripeClient $stripe;
 
-  public function __construct()
+  protected SystemActionService $systemActionService;
+
+  public function __construct(SystemActionService $systemActionService)
   {
     Stripe\Stripe::setApiKey(env('STRIPE_SECRET'));
     $this->stripe = new \Stripe\StripeClient(env('STRIPE_SECRET'));
+
+    $this->systemActionService = $systemActionService;
   }
 
   private function get_plans()
@@ -110,6 +117,11 @@ class StripeControllerV2 extends Controller
       $subscription->payment_status = null;
       $subscription->save();
     }
+
+    $this->systemActionService->logAction(SystemActionType::SUBSCRIPTION_CANCELLED, [
+      'user_id' => $user->id, 
+    ]);
+
     return response()->json(['message' => 'Subscription cancelled'], 200);
   }
 
@@ -189,6 +201,22 @@ class StripeControllerV2 extends Controller
     // ], [
     //   'stripe_version' => '2022-08-01',
     // ]);
+
+    if($plan->recurring->interval === "month") {
+      $this->systemActionService->logAction(
+        SystemActionType::SUBSCRIPTION_MONTHLY,
+        [
+        'user_id' => $user->id,
+      ]);
+    }
+    
+    if($plan->recurring->interval === "year") {
+      $this->systemActionService->logAction(
+        SystemActionType::SUBSCRIPTION_YEARLY, 
+        [
+        'user_id' => $user->id,
+      ]);
+    }
 
     return response()->json([
       'customer' => $customer->id,

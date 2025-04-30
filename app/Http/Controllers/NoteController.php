@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SystemActionType;
 use App\Models\Note;
 use App\Models\NoteQuestion;
+use App\Services\SystemActionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +16,13 @@ class NoteController extends Controller
     // {
     //     $this->middleware('auth');
     // }
+
+    protected SystemActionService $systemActionService;
+
+    public function __construct(SystemActionService $systemActionService)
+    {
+        $this->systemActionService = $systemActionService;
+    }
 
     public function index(Request $request)
     {
@@ -55,6 +64,11 @@ class NoteController extends Controller
 
         Log::info($sql);
 
+        $this->systemActionService->logAction(SystemActionType::NOTES_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
+
+
         return response()->json($notes);
     }
 
@@ -70,6 +84,10 @@ class NoteController extends Controller
 
         $note = Note::create($validatedData);
         $note->load('question');
+
+        $this->systemActionService->logAction(SystemActionType::NOTES_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json([
             'id' => $note->id,
@@ -98,6 +116,10 @@ class NoteController extends Controller
         $note->update($validatedData);
         $note->load('question');
 
+        $this->systemActionService->logAction(SystemActionType::NOTES_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
+
         return response()->json([
             'id' => $note->id,
             'title' => $note->title,
@@ -118,6 +140,10 @@ class NoteController extends Controller
             ->firstOrFail();
 
         $note->delete();
+
+        $this->systemActionService->logAction(SystemActionType::NOTES_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json(null, 204);
     }
@@ -143,6 +169,10 @@ class NoteController extends Controller
             });
 
         $totalNotes = Note::where('user_id', Auth::id())->count();
+
+        $this->systemActionService->logAction(SystemActionType::NOTES_INTERACTION, [
+            'user_id' => auth()->id()
+        ]);
 
         return response()->json([
             'data' => $latestNotes,
