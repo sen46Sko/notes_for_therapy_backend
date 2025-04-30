@@ -197,6 +197,31 @@ class SubscriptionWebhookController extends Controller
             Log::info('Google Play Webhook received', ['payload' => $decodedData]);
 
             $response = $this->processGoogleSubscriptionUpdate($decodedData);
+
+            // Acknowledge the purchase with Google Play if processing was successful
+            if ($response->getStatusCode() === 200) {
+                $subscriptionNotification = $decodedData['subscriptionNotification'] ?? null;
+                $purchaseToken = $subscriptionNotification['purchaseToken'] ?? null;
+                $subscriptionId = $subscriptionNotification['subscriptionId'] ?? null; // Although subscriptionId is not directly needed for acknowledge, it's good practice to have it for context/logging
+
+                if ($purchaseToken && $subscriptionId) {
+                    try {
+                        $this->acknowledgeGooglePurchase($purchaseToken, $subscriptionId);
+                        Log::info('Google Play purchase acknowledged successfully.', ['purchaseToken' => $purchaseToken]);
+                    } catch (\Exception $ackError) {
+                        Log::error('Failed to acknowledge Google Play purchase.', [
+                            'purchaseToken' => $purchaseToken,
+                            'error' => $ackError->getMessage()
+                        ]);
+                        // Decide if this failure should change the response.
+                        // For now, we log the error but still return the original success response
+                        // as the local subscription update was successful.
+                    }
+                } else {
+                     Log::warning('Could not acknowledge Google Play purchase due to missing token or subscription ID.', ['payload' => $decodedData]);
+                }
+            }
+
             $this->cacheMessage($request);
             return $response;
         } catch (\Exception $e) {
@@ -293,6 +318,31 @@ class SubscriptionWebhookController extends Controller
         }
     }
 
+    private function acknowledgeGooglePurchase($purchaseToken, $subscriptionId)
+    {
+        $client = new GoogleClient();
+        $client->setAuthConfig(storage_path(
+            config('services.google_play.credentials')
+        ));
+        $client->addScope('https://www.googleapis.com/auth/androidpublisher');
+
+        $androidPublisher = new Google_Service_AndroidPublisher($client);
+
+        $acknowledgeRequest = new \Google\Service\AndroidPublisher\SubscriptionPurchasesAcknowledgeRequest();
+        // Optionally set developerPayload if needed, but usually not required for simple acknowledgment
+        // $acknowledgeRequest->setDeveloperPayload('...');
+
+        // The acknowledge method requires package name, subscription ID, and token
+        $androidPublisher->purchases_subscriptions->acknowledge(
+            config('services.google_play.package_name'),
+            $subscriptionId, // Note: Google's documentation sometimes implies only token is needed, but the API client library often requires subscriptionId too. Let's include it.
+            $purchaseToken,
+            $acknowledgeRequest
+        );
+
+        // No return value needed, exception is thrown on failure
+    }
+
     private function updateSubscription(
         $userUuid,
         $subscriptionId,
@@ -367,20 +417,20 @@ class SubscriptionWebhookController extends Controller
                 $plan = "month";
                 $systemActionService = new SystemActionService();
                 $systemActionService->logAction(SystemActionType::SUBSCRIPTION_MONTHLY, [
-                    'user_id' => $user->id, 
+                    'user_id' => $user->id,
                 ]);
             }
             if($subscription->provider_subscription_id === "notes_yearly_1") {
                 $plan = "year";
                 $systemActionService = new SystemActionService();
                 $systemActionService->logAction(SystemActionType::SUBSCRIPTION_YEARLY, [
-                    'user_id' => $user->id, 
+                    'user_id' => $user->id,
                 ]);
             }
 
 
-            
-           
+
+
 
             return response()->json(['message' => 'Subscription updated successfully']);
 
