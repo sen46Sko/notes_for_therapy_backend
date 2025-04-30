@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProblemLog;
 use App\Models\Problem;
 use App\Models\ProblemRequest;
 use Illuminate\Http\Request;
@@ -16,26 +17,33 @@ class ProblemController extends Controller
         return response()->json($problems);
     }
 
-public function store(Request $request)
-{
-    \Log::info('Incoming request data:', [
-        'all_data' => $request->all(),
-        'bearer_token' => $request->bearerToken()
-    ]);
+    public function store(Request $request)
+    {
+        \Log::info('Incoming request data:', [
+            'all_data' => $request->all(),
+            'bearer_token' => $request->bearerToken()
+        ]);
 
-    $validatedData = $request->validate([
-        'text' => 'required|string',
-        'email' => 'required|email',
-        'problem_id' => 'nullable|exists:problems,id',
-        'problem_description' => 'sometimes|nullable|string',
-    ]);
+        $validatedData = $request->validate([
+            'text' => 'required|string',
+            'email' => 'required|email',
+            'problem_id' => 'nullable|exists:problems,id',
+            'problem_description' => 'sometimes|nullable|string',
+        ]);
 
-    $user = $request->user();
+        $user = $request->user();
 
-    $validatedData['user_id'] = $user->id;
+        $validatedData['user_id'] = $user->id;
 
-    $problemRequest = ProblemRequest::create($validatedData);
+        $ticket = ProblemRequest::create($validatedData);
 
-    return response()->json($problemRequest, 201);
-}
+        ProblemLog::create([
+            'ticket_id' => $ticket->id,
+            'action_type' => 'created',
+            'description' => 'Ticket was created',
+            'value' => null,
+        ]);
+
+        return response()->json($ticket, 201);
+    }
 }

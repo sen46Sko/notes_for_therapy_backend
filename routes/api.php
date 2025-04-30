@@ -89,7 +89,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::middleware('auth:sanctum')->post('/problems/message/{id}', [TicketController::class, 'userSendMessage']);
 
 //   Start Authentication
 Route::post('socialLogin', [ApiController::class, 'socialLogin']);
@@ -177,7 +176,10 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     //      End User Api
 
 
+    // Users Tickets
 
+    Route::post('/problems/message/{id}', [TicketController::class, 'userSendMessage']);
+    Route::get('/user/tickets', [TicketController::class, 'getUserTickets']);
 
     // Home analytics
 
