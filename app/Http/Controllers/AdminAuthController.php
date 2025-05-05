@@ -139,7 +139,7 @@ class AdminAuthController extends Controller
             return response()->json([
                 'message' => 'Admin created successfully and invitation sent',
                 'admin' => $admin,
-                'registration_link' => env('FRONTEND_URL', 'http://localhost:5173') . '/admin-register/' . $uuid
+                'registration_link' => env('FRONTEND_URL', 'https://admin-panel-nine-indol.vercel.app') . '/admin-register/' . $uuid
             ], 201);
         } catch (\Exception $e) {
             Log::error('Failed to send registration email: ' . $e->getMessage());
@@ -154,7 +154,7 @@ class AdminAuthController extends Controller
 
 private function sendRegistrationEmail($email, $uuid)
 {
-    $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
+    $frontendUrl = env('FRONTEND_URL', 'https://admin-panel-nine-indol.vercel.app');
     $registrationLink = $frontendUrl . '/admin-register/' . $uuid;
 
     Log::info('Sending registration email with link: ' . $registrationLink);
@@ -506,7 +506,7 @@ private function sendRegistrationEmail($email, $uuid)
                 ], 404);
             }
 
-            return redirect(env('FRONTEND_URL', 'http://localhost:5173') . '/error?message=Invalid+or+expired+registration+link');
+            return redirect(env('FRONTEND_URL', 'https://admin-panel-nine-indol.vercel.app') . '/error?message=Invalid+or+expired+registration+link');
         }
 
         if (request()->expectsJson()) {
@@ -516,7 +516,7 @@ private function sendRegistrationEmail($email, $uuid)
             ]);
         }
 
-        return redirect(env('FRONTEND_URL', 'http://localhost:5173') . '/admin-register/' . $uuid);
+        return redirect(env('FRONTEND_URL', 'https://admin-panel-nine-indol.vercel.app') . '/admin-register/' . $uuid);
     }
     protected function trackDevice($admin, Request $request)
         {
