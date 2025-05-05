@@ -111,6 +111,7 @@ class AppleAuthController extends Controller
                 'trial_end' => $date->addDays(14),
                 'fcm_token' => $request->fcm,
                 'password' => "",
+                'country_code' => $request->country_code
             ]);
             $user->is_google_signup = true;
             $user->save();

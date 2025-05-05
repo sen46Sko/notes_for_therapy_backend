@@ -33,6 +33,16 @@ use App\Http\Controllers\UserExperienceController;
 use App\Http\Controllers\UserSymptomController;
 use App\Http\Controllers\UserNotificationSettingController;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\AppSettingsController;
+use App\Http\Controllers\AdminTwoFactorController;
+use App\Http\Controllers\SecuritySettingsController;
+use App\Http\Controllers\AdminPasswordController;
+use App\Http\Controllers\SessionController;
+use App\Http\Controllers\DeviceManagementController;
+use App\Http\Controllers\AdminNotificationController;
+use App\Http\Controllers\AdminNotificationSettingController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +55,31 @@ use App\Http\Controllers\TicketController;
 |
 */
 
+Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
+
+    Route::get('/admin/test-session-timeout', function() {
+        $admin = auth()->user();
+        $settings = \App\Models\SecuritySettings::first();
+
+        if (!$admin || !$admin->last_activity_at) {
+            return response()->json(['error' => 'No activity data']);
+        }
+
+        $lastActivity = $admin->last_activity_at;
+        $now = \Carbon\Carbon::now();
+        $diffInMinutes = $now->diffInMinutes($lastActivity);
+
+        return response()->json([
+            'admin_id' => $admin->id,
+            'last_activity_at' => $lastActivity->toDateTimeString(),
+            'current_time' => $now->toDateTimeString(),
+            'minutes_since_last_activity' => $diffInMinutes,
+            'timeout_setting' => $settings->session_timeout_duration,
+            'timeout_enabled' => $settings->session_timeout_enabled,
+            'should_expire' => $diffInMinutes >= 1
+        ]);
+    });
+});
 
 
 
@@ -52,44 +87,167 @@ use App\Http\Controllers\TicketController;
 
 // Admin auth routes
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/logout', [AdminAuthController::class, 'logout'])
+    ->middleware(['auth:sanctum', 'admin.auth']);
 Route::post('/admin/confirm-register', [AdminAuthController::class, 'confirmRegister']);
 
+// Admin 2FA public routes
+Route::post('/admin/2fa/verify-login', [AdminTwoFactorController::class, 'verifyDuringLogin']);
+Route::post('/admin/2fa/resend', [AdminTwoFactorController::class, 'resendCode']);
+
+
+// Get Settings
+
+Route::get('/admin/app-settings', [AppSettingsController::class, 'getSettings']);
+
+// Admin register link
+Route::get('/admin-register/{uuid}', [AdminAuthController::class, 'validateRegistrationLink'])
+    ->name('admin.register')
+    ->middleware('admin.registration.link');
+
+
+
+
 // Admin protected routes
-Route::middleware(['auth:sanctum', 'admin.auth'])->group(function () {
-    // Stats
-    Route::get('/admin/stats', [AdminStatsController::class, 'stats']);
-    Route::get('/admin/user-activity', [AdminStatsController::class, 'userActivity']);
-    Route::get('/admin/users', [AdminUserController::class, 'users']);
-    Route::get('/admin/analytics/user-engagement', [AdminUserController::class, 'engagement']);
-    Route::get('/admin/analytics/stats', [AdminUserController::class, 'stats']);
-    Route::get('/admin/users/{id}', [AdminUserController::class, 'userDetails']);
-    Route::get('/admin/analytics/retention', [AdminUserController::class, 'retention']);
-    Route::post('/admin/users/deactivate', [AdminUserController::class, 'deactivateUser']);
-    Route::get('/admin/analytics/subscriptions', [AdminStatsController::class, 'subscriptions']);
+Route::middleware(['auth:sanctum', 'admin.auth', 'check.device.blocked', 'check.session.timeout'])->group(function () {
 
-    // User actions
-    Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions']);
-
-    // Admin management
-    Route::post('/admin/create-admin', [AdminAuthController::class, 'createAdmin'])->middleware('check.permission:assign_roles');
-    Route::get('/admin/get-admins', [AdminAuthController::class, 'getAdmins']);
-    Route::post('/admin/update-admin-role/{id}', [AdminAuthController::class, 'updateAdminRole'])->middleware('check.permission:assign_roles');
-    Route::post('/admin/update-admin-permission/{id}', [AdminAuthController::class, 'updateAdminPermission'])->middleware('check.permission:modify_permissions');
-    Route::post('/admin/remove-admin', [AdminAuthController::class, 'removeAdmin'])->middleware('check.permission:modify_permissions');
-    Route::post('/admin/deactivate-admin', [AdminAuthController::class, 'deactivateAdmin'])->middleware('check.permission:modify_permissions');
-
-    // 📌 Ticket system
-
-    Route::post('/admin/tickets/change-status/{id}', [TicketController::class, 'changeStatus']);
-    Route::post('/admin/tickets/change-note/{id}', [TicketController::class, 'changeNote']);
-    Route::post('/admin/tickets/message/{id}', [TicketController::class, 'adminSendMessage']);
-    Route::get('/admin/tickets/get-stats', [TicketController::class, 'getStats']);
-    Route::get('/admin/tickets', [TicketController::class, 'listTickets']);
-    Route::get('/admin/tickets/{id}', [TicketController::class, 'getTicketDetails']);
+    // Notifications
+    Route::get('/admin/global-notification-settings', [AdminNotificationSettingController::class, 'getGlobalSettings'])
+        ->middleware('check.permission:view_notification_setting');
+    Route::post('/admin/global-notification-settings', [AdminNotificationSettingController::class, 'updateGlobalSettings'])
+        ->middleware('check.permission:view_notification_setting');
+    Route::get('/admin/notification-settings', [AdminNotificationSettingController::class, 'index']);
+    Route::post('/admin/notification-settings', [AdminNotificationSettingController::class, 'update']);
 
 
+    Route::get('/admin/notifications', [AdminNotificationController::class, 'index']);
+    Route::get('/admin/notifications/unread', [AdminNotificationController::class, 'unread']);
+    Route::post('/admin/notifications/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+    Route::post('/admin/notifications/read-all', [AdminNotificationController::class, 'markAllAsRead']);
+
+    // Password expire
+    Route::post('/admin/change-password', [AdminPasswordController::class, 'changePassword']);
+    Route::get('/admin/check-password-expiration', [AdminPasswordController::class, 'checkPasswordExpiration']);
+
+    // Session expire
+    Route::post('/admin/update-activity', [SessionController::class, 'updateActivity'])->middleware('update.activity');
+
+    Route::middleware(['check.password.expiration'])->group(function () {
+
+
+        // Stats (View Analytics)
+        Route::get('/admin/stats', [AdminStatsController::class, 'stats'])
+            ->middleware('check.permission:view_analytics');
+
+        Route::get('/admin/user-activity', [AdminStatsController::class, 'userActivity'])
+            ->middleware('check.permission:view_admin_logs');
+
+        Route::get('/admin/users', [AdminUserController::class, 'users'])
+            ->middleware('check.permission:view_users');
+
+        Route::get('/admin/analytics/user-engagement', [AdminUserController::class, 'engagement'])
+            ->middleware('check.permission:view_analytics');
+
+        Route::get('/admin/analytics/stats', [AdminUserController::class, 'stats'])
+            ->middleware('check.permission:view_analytics');
+
+        Route::get('/admin/users/{id}', [AdminUserController::class, 'userDetails'])
+            ->middleware('check.permission:view_users');
+
+        Route::get('/admin/analytics/retention', [AdminUserController::class, 'retention'])
+            ->middleware('check.permission:view_analytics');
+
+        Route::post('/admin/users/deactivate', [AdminUserController::class, 'deactivateUser'])
+            ->middleware('check.permission:suspend_user');
+
+        Route::post('/admin/users/activate', [AdminUserController::class, 'activateUser'])
+            ->middleware('check.permission:suspend_user');
+
+        Route::get('/admin/analytics/subscriptions', [AdminStatsController::class, 'subscriptions'])
+            ->middleware('check.permission:view_analytics');
+
+        Route::get('/admin/analytics/map-stats', [AdminStatsController::class, 'getMapStats'])
+            ->middleware('check.permission:view_analytics');
+
+        // User actions
+        Route::get('/activity/user-actions', [UserActionController::class, 'getUserActions'])
+            ->middleware('check.permission:view_admin_logs');
+
+        // Admin management
+        Route::post('/admin/create-admin', [AdminAuthController::class, 'createAdmin'])
+            ->middleware('check.permission:invite_user');
+
+        Route::get('/admin/get-admins', [AdminAuthController::class, 'getAdmins'])
+            ->middleware('check.permission:view_users');
+
+        Route::post('/admin/update-admin-role/{id}', [AdminAuthController::class, 'updateAdminRole'])
+            ->middleware('check.permission:assign_roles');
+
+        Route::post('/admin/update-admin-permission/{id}', [AdminAuthController::class, 'updateAdminPermission'])
+            ->middleware('check.permission:modify_permissions');
+
+        Route::post('/admin/remove-admin', [AdminAuthController::class, 'removeAdmin'])
+            ->middleware('check.permission:delete_user');
+
+        Route::post('/admin/deactivate-admin', [AdminAuthController::class, 'deactivateAdmin'])
+            ->middleware('check.permission:suspend_user');
+
+        Route::post('/admin/activate-admin', [AdminAuthController::class, 'activateAdmin'])
+            ->middleware('check.permission:suspend_user');
+
+        Route::post('/admin/update-profile', [AdminAuthController::class, 'updateProfile']);
+
+        // Ticket system
+        Route::post('/admin/tickets/change-status/{id}', [TicketController::class, 'changeStatus'])
+            ->middleware('check.permission:assign_tickets');
+
+        Route::post('/admin/tickets/change-note/{id}', [TicketController::class, 'changeNote'])
+            ->middleware('check.permission:respond_tickets');
+
+        Route::post('/admin/tickets/message/{id}', [TicketController::class, 'adminSendMessage'])
+            ->middleware('check.permission:respond_tickets');
+
+        Route::get('/admin/tickets/get-stats', [TicketController::class, 'getStats'])
+            ->middleware('check.permission:view_tickets');
+
+        Route::get('/admin/tickets', [TicketController::class, 'listTickets'])
+            ->middleware('check.permission:view_tickets');
+
+        Route::get('/admin/tickets/{id}', [TicketController::class, 'getTicketDetails'])
+            ->middleware('check.permission:view_tickets');
+
+        Route::get('/admin/feedback', [FeedbackController::class, 'index'])
+            ->middleware('check.permission:view_tickets');
+
+        // Settings
+        Route::post('/admin/update-settings', [AppSettingsController::class, 'updateSettings'])->middleware('check.permission:restrict_features');
+
+        Route::get('/admin/security-settings', [SecuritySettingsController::class, 'getSettings'])->middleware('check.permission:restrict_features');;
+
+        Route::post('/admin/security-settings', [SecuritySettingsController::class, 'updateSettings'])->middleware('check.permission:restrict_features');;
+
+        Route::post('/admin/security-settings/reset', [SecuritySettingsController::class, 'resetToDefault'])->middleware('check.permission:restrict_features');;
+
+     });
+
+     // Device Management
+         Route::prefix('admin/devices')->group(function () {
+             Route::get('/', [DeviceManagementController::class, 'getDevices'])
+                 ->middleware('check.permission:view_security_logs');
+             Route::post('/block', [DeviceManagementController::class, 'blockDevice'])
+                 ->middleware('check.permission:manage_login');
+             Route::post('/unblock', [DeviceManagementController::class, 'unblockDevice'])
+                 ->middleware('check.permission:manage_login');
+             Route::post('/force-logout', [DeviceManagementController::class, 'forceLogout'])
+                 ->middleware('check.permission:manage_login');
+         });
+
+         Route::get('/admin/activity-logs', [DeviceManagementController::class, 'getActivityLogs'])
+             ->middleware('check.permission:view_security_logs');
+
+         Route::get('/admin/failed-logins', [DeviceManagementController::class, 'getFailedLoginAttempts'])
+             ->middleware('check.permission:view_security_logs');
 });
-
 
 
 // User Routes
@@ -255,6 +413,12 @@ Route::group(['middleware' => ['jwt.verify']], function () {
     Route::resource('notification-settings', UserNotificationSettingController::class);
 
     // End User Experience
+
+    // Start User Feedback
+
+    Route::post('/feedback', [FeedbackController::class, 'store']);
+
+    // End User Feedback
 
     //   Start Goal
     // Route::resource('goal', GoalController::class);

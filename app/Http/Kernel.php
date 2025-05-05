@@ -69,5 +69,10 @@ class Kernel extends HttpKernel
         'IsAdmin' => \App\Http\Middleware\IsAdmin::class,
         'admin.auth' => \App\Http\Middleware\AdminAuthentication::class,
         'check.permission' =>\App\Http\Middleware\CheckAdminPermission::class,
+        'admin.registration.link' => \App\Http\Middleware\ValidateAdminRegistrationLink::class,
+        'check.password.expiration' => \App\Http\Middleware\CheckPasswordExpiration::class,
+        'check.session.timeout' => \App\Http\Middleware\CheckSessionTimeout::class,
+        'update.activity' => \App\Http\Middleware\UpdateLastActivity::class,
+        'check.device.blocked' => \App\Http\Middleware\CheckDeviceBlocked::class,
     ];
 }

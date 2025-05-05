@@ -170,6 +170,27 @@ public function listTickets(Request $request)
         $query->where('created_at', '<=', Carbon::parse($request->to));
     }
 
+     if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+
+                $q->where('id', 'LIKE', "%{$searchTerm}%")
+
+                  ->orWhere('problem_description', 'LIKE', "%{$searchTerm}%")
+
+                  ->orWhere('status', 'LIKE', "%{$searchTerm}%")
+
+                  ->orWhereHas('user', function($q) use ($searchTerm) {
+                      $q->where('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+                  })
+
+                  ->orWhereHas('problem', function($q) use ($searchTerm) {
+                      $q->where('title', 'LIKE', "%{$searchTerm}%");
+                  });
+            });
+        }
+
     $page = $request->get('page', 1);
     $perPage = $request->get('perPage', 10);
 
@@ -237,7 +258,7 @@ public function getTicketDetails($id)
         'user' => [
             'name' => $user->name,
             'email' => $user->email,
-            'image' => $user->image,
+            'avatar' => $user->image,
             'created_at' => $user->created_at,
             'last_login' => $user->last_login ?? null,
             'gender' => $user->gender,
