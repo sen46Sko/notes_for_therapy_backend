@@ -19,6 +19,39 @@ class Kernel extends ConsoleKernel
         // $schedule->command('inspire')->hourly();
         Log::info('Scheduling notifications:send command');
         $schedule->command('notifications:send')->everyMinute();
+
+         // Daily
+            $schedule->call(function () {
+                $admins = \App\Models\Admin::all();
+                $emailService = new \App\Services\AdminNotificationEmailService();
+
+                foreach ($admins as $admin) {
+                    $emailService->sendDailyDigest($admin);
+                }
+            })->dailyAt('08:00');
+
+            // Weekly
+            $schedule->call(function () {
+                $admins = \App\Models\Admin::all();
+                $emailService = new \App\Services\AdminNotificationEmailService();
+
+                foreach ($admins as $admin) {
+                    $emailService->sendWeeklyDigest($admin);
+                }
+            })->weeklyOn(1, '09:00');
+
+            // Monthly
+            $schedule->call(function () {
+                $admins = \App\Models\Admin::all();
+                $emailService = new \App\Services\AdminNotificationEmailService();
+
+                foreach ($admins as $admin) {
+                    $emailService->sendMonthlyDigest($admin);
+                }
+            })->monthlyOn(1, '10:00');
+
+            $schedule->command('system:monitor-critical')->everyFiveMinutes();
+            $schedule->command('platform:detect-code-changes')->daily();
     }
 
     /**

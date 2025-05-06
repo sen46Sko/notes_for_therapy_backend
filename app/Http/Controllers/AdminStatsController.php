@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UserAction;
+use Illuminate\Support\Facades\DB;
 use App\Enums\SystemActionType;
 use App\Models\Subscription;
 use App\Models\SystemAction;
@@ -220,4 +222,81 @@ class AdminStatsController extends Controller
 
         return response()->json($stats);
     }
+
+
+        public function getMapStats()
+        {
+            $currentYearStart = Carbon::now()->startOfYear();
+            $previousYearStart = Carbon::now()->subYear()->startOfYear();
+            $currentMonthStart = Carbon::now()->startOfMonth();
+            $previousMonthStart = Carbon::now()->subMonth()->startOfMonth();
+
+            $currentYearActions = UserAction::select(
+                    'users.country_code',
+                    DB::raw('count(*) as total')
+                )
+                ->join('users', 'user_actions.user_id', '=', 'users.id')
+                ->where('user_actions.created_at', '>=', $currentYearStart)
+                ->groupBy('users.country_code')
+                ->get();
+
+            $previousYearActions = UserAction::select(
+                    'users.country_code',
+                    DB::raw('count(*) as total')
+                )
+                ->join('users', 'user_actions.user_id', '=', 'users.id')
+                ->whereBetween('user_actions.created_at', [$previousYearStart, $currentYearStart])
+                ->groupBy('users.country_code')
+                ->get();
+
+            $currentMonthActions = UserAction::select(
+                    'users.country_code',
+                    DB::raw('count(*) as total')
+                )
+                ->join('users', 'user_actions.user_id', '=', 'users.id')
+                ->where('user_actions.created_at', '>=', $currentMonthStart)
+                ->groupBy('users.country_code')
+                ->get();
+
+            $previousMonthActions = UserAction::select(
+                    'users.country_code',
+                    DB::raw('count(*) as total')
+                )
+                ->join('users', 'user_actions.user_id', '=', 'users.id')
+                ->whereBetween('user_actions.created_at', [$previousMonthStart, $currentMonthStart])
+                ->groupBy('users.country_code')
+                ->get();
+
+            $totalCurrentYear = $currentYearActions->sum('total') ?: 1;
+            $totalPreviousYear = $previousYearActions->sum('total') ?: 1;
+            $totalCurrentMonth = $currentMonthActions->sum('total') ?: 1;
+            $totalPreviousMonth = $previousMonthActions->sum('total') ?: 1;
+
+            $response = [
+                'monthly' => [
+                    'current' => $this->convertToPercentages($currentMonthActions, $totalCurrentMonth),
+                    'prev' => $this->convertToPercentages($previousMonthActions, $totalPreviousMonth)
+                ],
+                'yearly' => [
+                    'current' => $this->convertToPercentages($currentYearActions, $totalCurrentYear),
+                    'prev' => $this->convertToPercentages($previousYearActions, $totalPreviousYear)
+                ]
+            ];
+
+            return response()->json($response);
+        }
+
+        private function convertToPercentages($actions, $total)
+        {
+            $percentages = [];
+
+            foreach ($actions as $action) {
+                if (!empty($action->country_code)) {
+                    $percentages[$action->country_code] = round(($action->total / $total) * 100, 1);
+                }
+            }
+
+            return $percentages;
+        }
+
 }

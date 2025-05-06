@@ -54,7 +54,7 @@ return [
 
 //     'url' => env('APP_URL', 'http://localhost'),
        'url' => env('APP_URL', 'http://192.168.0.21:8000'),
-
+       'frontend_url' => env('FRONTEND_URL', 'https://admin-panel-nine-indol.vercel.app'),
     'asset_url' => env('ASSET_URL', null),
 
     /*

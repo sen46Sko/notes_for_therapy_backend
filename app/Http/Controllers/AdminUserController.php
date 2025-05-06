@@ -37,8 +37,9 @@ class AdminUserController extends Controller
         }
 
         $user = User::findOrFail($request->user_id);
+
         $user->update([
-            'deactivate_to' => $request->date,
+            'deactivate_to' => \Carbon\Carbon::parse($request->date),
             'account_status' => "inactive",
         ]);
 
@@ -47,6 +48,37 @@ class AdminUserController extends Controller
             'user' => $user
         ]);
     }
+
+    public function activateUser(Request $request) {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        if ($request->user_id == auth()->id()) {
+            return response()->json([
+                'message' => 'You cannot activate your own account'
+            ], 403);
+        }
+
+        $user = User::findOrFail($request->user_id);
+
+        if ($user->account_status !== 'inactive') {
+            return response()->json([
+                'message' => 'User account is already active'
+            ], 400);
+        }
+
+        $user->update([
+            'deactivate_to' => null,
+            'account_status' => "active",
+        ]);
+
+        return response()->json([
+            'message' => 'User activated successfully',
+            'user' => $user
+        ]);
+    }
+
 
     public function retention(Request $request) {
 

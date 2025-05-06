@@ -132,10 +132,12 @@ public function getStats()
         'resolved' => [
             'prev' => ProblemLog::where('action_type', 'closed')
                         ->whereBetween('created_at', [$startOfLastYear, $endOfLastYear])
-                        ->count(),
+                        ->distinct('ticket_id')
+                        ->count('ticket_id'),
             'current' => ProblemLog::where('action_type', 'closed')
                         ->where('created_at', '>=', $startOfYear)
-                        ->count(),
+                        ->distinct('ticket_id')
+                        ->count('ticket_id')
         ],
         'pending' => [
             'prev' => 0,
@@ -154,7 +156,7 @@ public function getStats()
 
 public function listTickets(Request $request)
 {
-    $query = ProblemRequest::with(['user:id,name', 'problem:id,title']);
+    $query = ProblemRequest::with(['user', 'problem:id,title']);
 
     if ($request->filled('status')) {
         $query->where('status', $request->status);
@@ -167,6 +169,27 @@ public function listTickets(Request $request)
     if ($request->filled('to')) {
         $query->where('created_at', '<=', Carbon::parse($request->to));
     }
+
+     if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+
+                $q->where('id', 'LIKE', "%{$searchTerm}%")
+
+                  ->orWhere('problem_description', 'LIKE', "%{$searchTerm}%")
+
+                  ->orWhere('status', 'LIKE', "%{$searchTerm}%")
+
+                  ->orWhereHas('user', function($q) use ($searchTerm) {
+                      $q->where('name', 'LIKE', "%{$searchTerm}%")
+                        ->orWhere('email', 'LIKE', "%{$searchTerm}%");
+                  })
+
+                  ->orWhereHas('problem', function($q) use ($searchTerm) {
+                      $q->where('title', 'LIKE', "%{$searchTerm}%");
+                  });
+            });
+        }
 
     $page = $request->get('page', 1);
     $perPage = $request->get('perPage', 10);
@@ -196,6 +219,7 @@ public function getTicketDetails($id)
             'updated_at' => $ticket->updated_at,
             'status' => $ticket->status,
             'problem_description' => $ticket->problem_description,
+            'note' => $ticket->note,
             'problem' => [
                 'name' => optional($ticket->problem)->title,
             ],
@@ -225,6 +249,7 @@ public function getTicketDetails($id)
         'updated_at' => $ticket->updated_at,
         'status' => $ticket->status,
         'problem_description' => $ticket->problem_description,
+        'note' => $ticket->note,
         'problem' => [
             'name' => optional($ticket->problem)->name,
         ],
@@ -233,7 +258,7 @@ public function getTicketDetails($id)
         'user' => [
             'name' => $user->name,
             'email' => $user->email,
-            'avatar' => $user->avatar,
+            'avatar' => $user->image,
             'created_at' => $user->created_at,
             'last_login' => $user->last_login ?? null,
             'gender' => $user->gender,
@@ -241,6 +266,16 @@ public function getTicketDetails($id)
             'plan' => $plan,
         ],
     ]);
+}
+public function getUserTickets(Request $request)
+{
+    $user = auth()->user();
+
+    $tickets = ProblemRequest::where('user_id', $user->id)
+                              ->with(['problem', 'logs', 'messages'])
+                              ->get();
+
+    return response()->json($tickets);
 }
 
 
