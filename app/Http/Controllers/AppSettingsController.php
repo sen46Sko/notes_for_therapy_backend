@@ -18,36 +18,14 @@ class AppSettingsController extends Controller
     {
         $settings = AppSetting::getCurrentSettings();
 
-         if ($settings->logo) {
-             $settings->logo = asset('storage/' . $settings->logo);
-         }
-
         return response()->json([
             'success' => true,
             'data' => $settings
         ]);
     }
 
-    /**
-     *
-     *
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function updateSettings(Request $request)
     {
-        if (auth()->user()->role !== 'super_admin') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Role super admin is required'
-            ], 403);
-        }
-
-        $request->validate([
-            'color' => 'required|string|max:7',
-            'name' => 'required|string|max:255',
-            'logo' => 'nullable|image|max:20480', // 20MB max
-        ]);
 
         $settings = AppSetting::getCurrentSettings();
 
@@ -56,19 +34,16 @@ class AppSettingsController extends Controller
 
         if ($request->hasFile('logo')) {
 
-            if ($settings->logo && Storage::exists($settings->logo)) {
-                Storage::delete($settings->logo);
+            if ($settings->getRawOriginal('logo')) {
+                Storage::disk(config('filesystems.default'))->delete($settings->getRawOriginal('logo'));
             }
 
-            $path = $request->file('logo')->store('logos', 'public');
+
+            $path = $request->file('logo')->store('logos', config('filesystems.default'));
             $settings->logo = $path;
         }
 
         $settings->save();
-
-        if ($settings->logo) {
-            $settings->logo = asset('storage/' . $settings->logo);
-        }
 
         return response()->json([
             'success' => true,
@@ -76,4 +51,5 @@ class AppSettingsController extends Controller
             'data' => $settings
         ]);
     }
+
 }

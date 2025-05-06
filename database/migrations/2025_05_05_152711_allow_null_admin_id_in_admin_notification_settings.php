@@ -14,7 +14,15 @@ class AllowNullAdminIdInAdminNotificationSettings extends Migration
     public function up()
     {
         Schema::table('admin_notification_settings', function (Blueprint $table) {
-            $table->unsignedBigInteger('admin_id')->nullable()->change();
+
+            $table->dropForeign(['admin_id']);
+
+            $table->integer('admin_id')->unsigned()->nullable()->change();
+
+            $table->foreign('admin_id')
+                  ->references('id')
+                  ->on('users')
+                  ->onDelete('cascade');
         });
     }
 
@@ -26,7 +34,14 @@ class AllowNullAdminIdInAdminNotificationSettings extends Migration
     public function down()
     {
         Schema::table('admin_notification_settings', function (Blueprint $table) {
-            $table->unsignedBigInteger('admin_id')->nullable(false)->change();
+            $table->dropForeign(['admin_id']);
+
+            $table->integer('admin_id')->unsigned()->nullable(false)->change();
+
+            $table->foreign('admin_id')
+                  ->references('id')
+                  ->on('users')
+                  ->onDelete('cascade');
         });
     }
 }

@@ -438,42 +438,54 @@ private function sendRegistrationEmail($email, $uuid)
 
 
     public function updateProfile(Request $request)
-        {
-            $admin = auth()->user();
+    {
+        $admin = auth()->user();
 
-            $validatedData = $request->validate([
-                'full_name' => 'required|string|max:255',
-                'email' => [
-                    'required',
-                    'email',
-                    Rule::unique('admins')->ignore($admin->id),
-                ],
+        $validatedData = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => [
+                'required',
+                'email',
+                Rule::unique('admins')->ignore($admin->id),
+            ],
+        ]);
+
+        $admin->name = $validatedData['full_name'];
+        $admin->email = $validatedData['email'];
+
+        if ($request->hasFile('avatar')) {
+            $request->validate([
+                'avatar' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
             ]);
 
-            $admin->name = $validatedData['full_name'];
-            $admin->email = $validatedData['email'];
 
-            if ($request->hasFile('avatar')) {
-                $request->validate([
-                    'avatar' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-                ]);
+            if ($admin->avatar) {
 
-                if ($admin->avatar) {
-                    Storage::disk('public')->delete($admin->avatar);
+                $oldAvatarPath = str_replace(env('AWS_URL'), '', $admin->avatar);
+                if (strpos($oldAvatarPath, 'http') === 0) {
+
+                    $pathParts = parse_url($oldAvatarPath);
+                    $oldAvatarPath = isset($pathParts['path']) ? ltrim($pathParts['path'], '/') : '';
                 }
 
-                $path = $request->file('avatar')->store('avatars/admin', 'public');
-                $admin->avatar = $path;
+                if (!empty($oldAvatarPath)) {
+                    Storage::disk(env('FILESYSTEM_DRIVER'))->delete($oldAvatarPath);
+                }
             }
 
-            $admin->save();
 
-            return response()->json([
-                'full_name' => $admin->name,
-                'email' => $admin->email,
-                'avatar' => $admin->avatar,
-            ]);
+            $path = $request->file('avatar')->store('avatars/admin', env('FILESYSTEM_DRIVER'));
+            $admin->avatar = $path;
         }
+
+        $admin->save();
+
+        return response()->json([
+            'full_name' => $admin->name,
+            'email' => $admin->email,
+            'avatar' => $admin->avatar,
+        ]);
+    }
 
     public function logout(Request $request)
         {
