@@ -5,6 +5,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Storage;
 
 class Admin extends Authenticatable
 {
@@ -57,27 +58,46 @@ class Admin extends Authenticatable
     {
         return $this->deactivate_to && now()->lt($this->deactivate_to);
     }
-    public function getAvatarUrlAttribute()
-    {
-        return $this->avatar ? asset('storage/' . $this->avatar) : null;
-    }
-    public function getAvatarAttribute($value)
-        {
-            return $value ? asset('storage/' . $value) : null;
-        }
+   public function getAvatarAttribute($value)
+   {
+       if (!$value) {
+           return null;
+       }
 
-    public function setAvatarAttribute($value)
-    {
-        if ($value && strpos($value, 'storage/') !== false) {
-            $parts = explode('storage/', $value);
-            if (count($parts) > 1) {
-                $this->attributes['avatar'] = $parts[1];
-                return;
-            }
-        }
+       if (filter_var($value, FILTER_VALIDATE_URL) || strpos($value, 'http') === 0) {
+           return $value;
+       }
 
-        $this->attributes['avatar'] = $value;
-    }
+       if (config('filesystems.default') === 's3') {
+           return Storage::disk('s3')->url($value);
+       }
+
+       return asset('storage/' . $value);
+   }
+
+   public function setAvatarAttribute($value)
+   {
+       if ($value && (strpos($value, 'http') === 0 || strpos($value, '//') === 0)) {
+           $baseUrl = env('AWS_URL');
+           if ($baseUrl && strpos($value, $baseUrl) === 0) {
+               $this->attributes['avatar'] = str_replace($baseUrl, '', $value);
+               return;
+           }
+
+           $storageUrl = asset('storage/');
+           if (strpos($value, $storageUrl) === 0) {
+               $this->attributes['avatar'] = str_replace($storageUrl . '/', '', $value);
+               return;
+           }
+
+           $this->attributes['avatar'] = $value;
+           return;
+       }
+
+       $this->attributes['avatar'] = $value;
+   }
+
+
 
     public function hasTwoFactorEnabled()
     {
